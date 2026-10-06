@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import LinkButton from '../../../../components/ui/LinkButton';
 
 const SubjectList = () => {
   return (
@@ -12,15 +13,10 @@ const SubjectList = () => {
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-gold">Subjects</h1>
-          <Link
-            className="cut-corners bg-gold px-4 py-2 font-display font-bold uppercase tracking-wider text-bg hover:shadow-glow-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan"
-            to="/admin/subjects/SubjectNew"
-          >
-            Add Subject
-          </Link>
+          <LinkButton to="/admin/subjects/SubjectNew">Add Subject</LinkButton>
         </div>
       </header>
-      <main className="overflow-x-auto border border-surface-2">
+      <div className="overflow-x-auto border border-surface-2">
         <table aria-label="Subjects Table" className="w-full border-collapse text-left">
           <thead>
             <tr className="bg-surface-2">
@@ -87,7 +83,7 @@ const SubjectList = () => {
             </tr>
           </tbody>
         </table>
-      </main>
+      </div>
     </div>
   );
 };
