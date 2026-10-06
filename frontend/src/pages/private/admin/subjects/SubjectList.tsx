@@ -1,16 +1,12 @@
 import { Link } from 'react-router-dom';
+import BackLink from '../../../../components/ui/BackLink';
 import LinkButton from '../../../../components/ui/LinkButton';
 
 const SubjectList = () => {
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4">
-        <Link
-          className="inline-block text-sm text-ink-muted underline-offset-4 hover:text-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-          to="/admin"
-        >
-          Back to Admin Menu
-        </Link>
+        <BackLink to="/admin">Back to Admin Menu</BackLink>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-gold">Subjects</h1>
           <LinkButton to="/admin/subjects/SubjectNew">Add Subject</LinkButton>

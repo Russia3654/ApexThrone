@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import BackLink from '../../../../components/ui/BackLink';
 import LinkButton from '../../../../components/ui/LinkButton';
 
 const SubjectView = () => {
@@ -11,17 +12,14 @@ const SubjectView = () => {
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4">
-        <Link
-          className="inline-block text-sm text-ink-muted underline-offset-4 hover:text-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-          to="/admin/subjects"
-        >
-          Back to Subject List
-        </Link>
+        <BackLink to="/admin/subjects">Back to Subject List</BackLink>
         <div className="flex flex-col items-start justify-between gap-4">
           <h1 className="text-3xl font-bold text-gold">Subject: "name"</h1>
           <div className="flex gap-4">
             <LinkButton to={`/admin/subjects/SubjectEdit/${id}`}>Edit</LinkButton>
-            <LinkButton to={`/admin/subjects/SubjectDelete/${id}`} variant="danger">Delete</LinkButton>
+            <LinkButton to={`/admin/subjects/SubjectDelete/${id}`} variant="danger">
+              Delete
+            </LinkButton>
           </div>
         </div>
       </header>
