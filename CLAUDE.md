@@ -41,7 +41,8 @@
 ## Environment notes
 
 - VS Code must use the workspace TypeScript (4.9.5), set through `typescript.tsdk` in `.vscode/settings.json`. VS Code's bundled TS 6.x reports false errors on CRA's tsconfig and CSS imports.
-- Line endings: LF everywhere (Windows to Linux sync). Set through Prettier `endOfLine: "lf"`.
+- Line endings: LF everywhere (Windows to Linux sync). Prettier `endOfLine: "lf"` and `.gitattributes` enforce it.
+- Prettier: `npm run format` / `npm run format:check` in `frontend/`. Config in `.prettierrc`.
 
 ## Roadmap
 
@@ -49,6 +50,6 @@
 
 ## Current status
 
-- Step 1 nearly done: Tailwind v3 and theme in place, TS/editor errors fixed, `App.css` removed, frontend and backend folder structure created, root and frontend `.gitignore` in place, first commit made.
-- Still to do in Step 1: Prettier (with `endOfLine: "lf"`), ESLint/Prettier compatibility check, fix or remove the leftover CRA `App.test.tsx` if it exists.
-- Next: Step 2, types and mock data (start with User, Team, TeamMember, Tournament, API response shapes).
+- Step 1 complete: Tailwind v3 and theme, TS/editor errors fixed, folder structure (frontend and backend), `.gitignore` files, Prettier, 3 commits.
+- Professor's current request: a simple dashboard DESIGN with placeholders only (layout, sidebar, header, empty cards, no real data, no auth). This is done before Steps 2/3. It uses parts of Steps 4, 5 and 6 (a few UI components, the dashboard layout, routing) and defers real types, mock data and the API layer.
+- Next: build the placeholder dashboard (see order of work in chat), then return to Step 2.
