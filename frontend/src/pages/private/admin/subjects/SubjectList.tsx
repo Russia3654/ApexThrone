@@ -1,17 +1,15 @@
 import { Link } from 'react-router-dom';
-import BackLink from '../../../../components/ui/BackLink';
 import LinkButton from '../../../../components/ui/LinkButton';
+import PageHeader from '../../../../components/ui/PageHeader';
 
 const SubjectList = () => {
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4">
-        <BackLink to="/admin">Back to Admin Menu</BackLink>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-gold">Subjects</h1>
-          <LinkButton to="/admin/subjects/SubjectNew">Add Subject</LinkButton>
-        </div>
-      </header>
+      <PageHeader
+        title="Subjects"
+        backLink={{ to: '/admin', label: 'Back to Admin Menu' }}
+        actions={<LinkButton to="/admin/subjects/SubjectNew">Add Subject</LinkButton>}
+      />
       <div className="overflow-x-auto border border-surface-2">
         <table aria-label="Subjects Table" className="w-full border-collapse text-left">
           <thead>
