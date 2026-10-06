@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-bg text-ink font-body antialiased; }
+  h1, h2, h3 { @apply font-display uppercase tracking-wider; }
+}
+
+@layer components {
+  .cut-corners {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px,
+                       100% 100%, 14px 100%, 0 calc(100% - 14px));
+  }
+}
