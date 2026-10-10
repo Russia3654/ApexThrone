@@ -7,15 +7,17 @@ import TextField from './TextField';
 type SubjectFormProps = {
   submitLabel: string;
   options: string[];
+  onSubmit: () => void;
 };
 
-export default function SubjectForm({ submitLabel, options }: SubjectFormProps) {
+export default function SubjectForm({ submitLabel, options, onSubmit }: SubjectFormProps) {
   const [name, setName] = useState('');
   const [position, setPosition] = useState(options[0] ?? '');
   const [visible, setVisible] = useState(false);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    onSubmit();
   };
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     setName(event.target.value);
