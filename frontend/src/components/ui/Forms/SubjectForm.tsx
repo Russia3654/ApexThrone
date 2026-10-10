@@ -8,12 +8,22 @@ type SubjectFormProps = {
   submitLabel: string;
   options: string[];
   onSubmit: () => void;
+  initName?: string;
+  initPosition?: string;
+  initVisible?: boolean;
 };
 
-export default function SubjectForm({ submitLabel, options, onSubmit }: SubjectFormProps) {
-  const [name, setName] = useState('');
-  const [position, setPosition] = useState(options[0] ?? '');
-  const [visible, setVisible] = useState(false);
+export default function SubjectForm({
+  submitLabel,
+  options,
+  onSubmit,
+  initName,
+  initPosition,
+  initVisible,
+}: SubjectFormProps) {
+  const [name, setName] = useState(initName ?? options[0] ?? '');
+  const [position, setPosition] = useState(initPosition ?? '');
+  const [visible, setVisible] = useState(initVisible ?? false);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
