@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import BackLink from './Links/BackLink';
+import BackLink from '../Links/BackLink';
 
 type BackLinkInfo = {
   to: string;

@@ -1,7 +1,7 @@
 import { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Button from '../../../../components/ui/Buttons/Button';
-import PageHeader from '../../../../components/ui/PageHeader';
+import PageHeader from '../../../../components/ui/Dashboard/PageHeader';
 
 const SubjectDelete = () => {
   const navigate = useNavigate();
