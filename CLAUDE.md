@@ -36,7 +36,7 @@
 
 ## Frontend structure (`frontend/src`)
 
-`api/` (API layer + USE_MOCK), `mock/` (fake data, used only by api/), `types/`, `hooks/`, `context/`, `components/ui` and `components/layout`, `pages/public` and `pages/private`, `routes/`, `utils/`.
+`api/` (API layer + USE_MOCK), `mock/` (fake data, used only by api/), `types/` (shared types, e.g. `ui.ts`), `hooks/`, `context/`, `components/ui/{Buttons,Forms,Links}` and `components/layout`, `pages/public` and `pages/private/admin`, `routes/`, `utils/` (e.g. `buttonStyles.ts`, `positionOptions.ts` as temporary data).
 
 ## Environment notes
 
@@ -50,6 +50,8 @@
 
 ## Current status
 
-- Step 1 complete: Tailwind v3 and theme, TS/editor errors fixed, folder structure (frontend and backend), `.gitignore` files, Prettier, 3 commits.
-- Professor's current request: a simple dashboard DESIGN with placeholders only (layout, sidebar, header, empty cards, no real data, no auth). This is done before Steps 2/3. It uses parts of Steps 4, 5 and 6 (a few UI components, the dashboard layout, routing) and defers real types, mock data and the API layer.
-- Next: build the placeholder dashboard (see order of work in chat), then return to Step 2.
+- Step 1 complete (setup, tooling, structure, Prettier, commits).
+- Professor's request: a simple admin dashboard DESIGN with placeholders only (no real data, no auth). Subjects section done as placeholders: list, view, new, edit, delete. Built with `AdminLayout`, `PageHeader`, `LinkButton`, `BackLink`, `Button`, `TextField`, `SelectField`, `CheckboxField`, `SubjectForm`. Admin routes live in `routes/AppRouter.tsx`.
+- Step 2 (types, mock data) and Step 3 (API layer) are postponed on purpose. Until then, pages use hard-coded placeholder values, and `POSITION_OPTIONS` is a temporary constant.
+- Still to do for the dashboard: Pages section (same five screens), a real admin menu page, a catch-all not-found route.
+- Next: public pages (Step 7), starting with a public layout and the static pages.
