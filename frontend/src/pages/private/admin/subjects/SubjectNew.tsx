@@ -1,8 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import SubjectForm from '../../../../components/ui/Forms/SubjectForm';
 import PageHeader from '../../../../components/ui/PageHeader';
-
-const POSITION_OPTIONS = ['1', '2', '3', '4', '5'];
+import { POSITION_OPTIONS } from '../../../../utils/positionOptions';
 
 const SubjectNew = () => {
   const navigate = useNavigate();
