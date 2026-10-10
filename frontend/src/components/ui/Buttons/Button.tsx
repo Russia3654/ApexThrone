@@ -5,10 +5,11 @@ type ButtonProps = {
   type?: ButtonType;
   children: string;
   variant?: ButtonVariant;
+  onClick?: () => void;
 };
-const Button = ({ type = 'button', children, variant = 'primary' }: ButtonProps) => {
+const Button = ({ type = 'button', children, variant = 'primary', onClick }: ButtonProps) => {
   return (
-    <button type={type} className={`${BASE} ${VARIANTS[variant]}`}>
+    <button type={type} className={`${BASE} ${VARIANTS[variant]}`} onClick={onClick}>
       {children}
     </button>
   );
