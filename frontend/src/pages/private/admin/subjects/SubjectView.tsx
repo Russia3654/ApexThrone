@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import LinkButton from '../../../../components/ui/LinkButton';
+import LinkButton from '../../../../components/ui/Links/LinkButton';
 import PageHeader from '../../../../components/ui/PageHeader';
 
 const SubjectView = () => {
