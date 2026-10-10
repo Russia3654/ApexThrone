@@ -1,22 +1,11 @@
 import { Link, NavLink } from 'react-router-dom';
+import { links } from '../../utils/navLinks';
 import LinkButton from '../ui/Links/LinkButton';
-
-type NavItem = {
-  to: string;
-  label: string;
-};
 
 const BASE =
   'font-display uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold';
 const INACTIVE_CLASS = 'text-ink-muted hover:text-ink';
 const ACTIVE_CLASS = 'text-gold';
-
-const links: NavItem[] = [
-  { to: '/tournaments', label: 'Tournaments' },
-  { to: '/rules', label: 'Rules & FAQ' },
-  { to: '/about', label: 'About' },
-  { to: '/contact', label: 'Contact Us' },
-];
 
 export default function PublicNavbar() {
   return (
