@@ -21,8 +21,8 @@ export default function SubjectForm({
   initPosition,
   initVisible,
 }: SubjectFormProps) {
-  const [name, setName] = useState(initName ?? options[0] ?? '');
-  const [position, setPosition] = useState(initPosition ?? '');
+  const [name, setName] = useState(initName ?? '');
+  const [position, setPosition] = useState(initPosition ?? options[0] ?? '');
   const [visible, setVisible] = useState(initVisible ?? false);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
