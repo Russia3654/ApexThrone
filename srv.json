@@ -1,0 +1,9 @@
+{
+  "name": "apexthrone",
+  "type": "static",
+  "host": "apexthrone.test",
+  "workdir": "frontend",
+  "build": "npm run build",
+  "output": "frontend/build",
+  "env": { "GENERATE_SOURCEMAP": "false" }
+}
