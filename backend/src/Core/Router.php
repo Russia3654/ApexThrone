@@ -9,11 +9,6 @@ final class Router
     private array $routes = [];
     private string $prefix;
 
-    private function notFound(): void
-    {
-        Response::error('Not found', 404);
-    }
-
     public function __construct(string $prefix = '/api')
     {
         $this->prefix = $prefix;
@@ -36,12 +31,18 @@ final class Router
             return;
         }
         $path = substr($path, strlen($this->prefix));
-        $path = '/' . rtrim($path, '/');
+        $path = rtrim($path, '/');
+        $path = $path === '' ? '/' : $path;
         $handler = $this->routes[strtoupper($method)][$path] ?? null;
         if ($handler === null) {
             $this->notFound();
             return;
         }
         $handler();
+    }
+
+    private function notFound(): void
+    {
+        Response::error('Not found', 404);
     }
 }
