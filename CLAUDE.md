@@ -53,7 +53,7 @@
 
 ## Backend structure (`backend/`)
 
-`public/index.php` (front controller), `src/Core/` (`Config`, `Response`, `Router`, `ErrorHandler`, `Database`), `src/Controllers/` (`HealthController`), `config/config.example.php` (committed template; the real `config/config.php` is git-ignored and exists once per machine), `database/` (schema.sql and numbered migrations, applied by hand, never uploaded), `private/` (code behind login, empty for now), `tests/smoke.sh` (19 curl checks: `bash backend/tests/smoke.sh [base-url]`), `vendor/` (Composer autoloader, git-ignored, built locally).
+`public/index.php` (front controller), `src/Core/` (`Config`, `Response`, `Router`, `ErrorHandler`, `Database`), `src/Controllers/` (`HealthController`), `config/config.example.php` (committed template; the real `config/config.php` is git-ignored and exists once per machine), `database/` (schema.sql and numbered migrations, applied by hand, never uploaded), `private/` (code behind login, empty for now), `tests/smoke.sh` (curl checks: `bash backend/tests/smoke.sh [base-url] [dev|server]`; `dev` is strict, for the PHP dev server, 19 checks; `server` is for the real nginx deployment, 20 checks), `vendor/` (Composer autoloader, git-ignored, built locally).
 
 Conventions: PHP 8.3 with `declare(strict_types=1)`. Namespace `App\...` maps to `src/` (PSR-4). PDO prepared statements only (exceptions on, emulated prepares off, session time zone UTC). Every `/api` answer is JSON through `Response` (`{"error": "..."}` for errors) and never leaks internals. Routes are registered without the `/api` prefix, because the router removes it.
 
