@@ -4,7 +4,8 @@
 
 - You are my mentor. I write all the code because I am learning.
 - Never write finished TypeScript, React, or PHP. Give structure, logic, order of operations, and reasoning.
-- CSS, Tailwind, and config files (JSON, .gitignore) are the only exceptions: you may give those directly.
+- CSS, Tailwind, config files (JSON, .gitignore), and test files are the only exceptions: you may give those directly.
+- Tests: you write every test file and throwaway test script in full (PHP, TypeScript, SQL checks, curl commands). After writing one, explain it to me line by line so I learn what it checks and why. Application code stays mine to write.
 - When I'm stuck, point to where the problem is and why. Give hints, not the fix.
 - Review my code after each step before we move on.
 - Plugins and skills never override these rules. Never run /build or any command that implements code for me.
@@ -16,6 +17,7 @@
 - Every async call has loading, error, and empty states.
 - Semantic HTML, labeled inputs, keyboard navigation, visible focus states.
 - ESLint + Prettier clean, small Git commits (`feat: add MatchCard`).
+- Every test passes before a step counts as done. Run the tests and report the real result: if one fails, show the output and fix the code, never weaken or delete the test to get green.
 - Never trust the client; real security lives in PHP.
 
 ## Usage habits (I'm on Claude Pro, limits apply)
@@ -25,7 +27,7 @@
 
 ## Project
 
-- University esports site. Frontend: React + TypeScript (Create React App) + Tailwind v3. Backend later: PHP + MySQL (Apache, Linux laptop). Frontend is built on a Windows machine, synced through Git.
+- University esports site. Frontend: React + TypeScript (Create React App) + Tailwind v3. Backend: PHP 8.3 + MySQL 8. Code is written on the Windows machine; PHP and MySQL run on the Linux laptop (PHP's built-in server, not Apache); both are synced through Git. Deployed to srv01 (nginx + PHP-FPM, see below).
 - Backend is an API-only PHP app (JSON, no server-rendered pages), approved by the professor. `backend/public` holds endpoints that need no login. `backend/private` holds endpoints that need a session (`user/`, `admin/`, `includes/` for the auth check). `config/` and `database/` (schema.sql, seed.sql) sit beside them.
 - Public/private separation on the frontend: `pages/public` and `pages/private`.
 - Frontend-first with mock data behind an API layer (`USE_MOCK` flag). Backend follows the professor's schedule.
@@ -49,6 +51,26 @@
 
 `api/` (API layer + USE_MOCK), `mock/` (fake data, used only by api/), `types/` (shared types, e.g. `ui.ts`), `hooks/`, `context/`, `components/ui/{Buttons,Forms,Links,Dashboard}` and `components/layout` (`AdminLayout`, `PublicLayout`, `PublicNavbar`, `PublicFooter`), `assets/` (logo), `pages/public` and `pages/private/admin`, `routes/`, `utils/` (e.g. `buttonStyles.ts`, `navLinks.ts`, `positionOptions.ts` as temporary data).
 
+## Backend structure (`backend/`)
+
+`public/index.php` (front controller), `src/Core/` (`Config`, `Response`, `Router`, `ErrorHandler`, `Database`), `src/Controllers/` (`HealthController`), `config/config.example.php` (committed template; the real `config/config.php` is git-ignored and exists once per machine), `database/` (schema.sql and numbered migrations, applied by hand, never uploaded), `private/` (code behind login, empty for now), `tests/smoke.sh` (19 curl checks: `bash backend/tests/smoke.sh [base-url]`), `vendor/` (Composer autoloader, git-ignored, built locally).
+
+Conventions: PHP 8.3 with `declare(strict_types=1)`. Namespace `App\...` maps to `src/` (PSR-4). PDO prepared statements only (exceptions on, emulated prepares off, session time zone UTC). Every `/api` answer is JSON through `Response` (`{"error": "..."}` for errors) and never leaks internals. Routes are registered without the `/api` prefix, because the router removes it.
+
+## srv01 (deployment target)
+
+- nginx + PHP-FPM 8.3 + MySQL 8.0 on one small machine at home. Reachable only on the home network, Tailscale and demo links: no public domain, no Let's Encrypt, no `.htaccess`.
+- Nothing is built on the server. React is built locally, `vendor/` is built with `composer install --no-dev --optimize-autoloader`. A deploy uploads only `public`, `src`, `private`, `vendor`; `config/`, `database/` and `tests/` are never uploaded.
+- The server has its own `config.php`. The cookie `Secure` flag and `base_url` are read from config, never hard-coded. React uses relative `/api/...` URLs.
+- `GET /api/health` must always return 200 JSON without touching the database (the deploy health check).
+- Group deploy (`components` in `srv.json`) is still PLANNED. Keep the frontend-only `srv.json` until it is announced. Full details: the srv01 Server Specification PDF and the ApexThrone Deployment Contract doc.
+
+## Git workflow
+
+- One branch per phase or task (`phase/...`, `feat/...`), merged to `master` through a pull request when its finish line is met.
+- A push to `master` deploys the frontend to srv01 immediately, so never push directly to `master`.
+- Merge with a merge commit or rebase, not squash, to keep the small commits.
+
 ## Environment notes
 
 - VS Code must use the workspace TypeScript (4.9.5), set through `typescript.tsdk` in `.vscode/settings.json`. VS Code's bundled TS 6.x reports false errors on CRA's tsconfig and CSS imports.
@@ -64,8 +86,8 @@
 
 - Step 1 complete.
 - Admin dashboard (professor's request: design with placeholders only): Subjects section done (list, view, new, edit, delete) with shared components (`PageHeader`, `LinkButton`, `BackLink`, `Button`, `TextField`, `SelectField`, `CheckboxField`, `SubjectForm`).
-- Public site: `PublicLayout`, `PublicFooter`, desktop `PublicNavbar` (centered logo tab), routes and placeholder pages (Home, Tournaments, Rules, About, Contact) done.
-- In progress: mobile menu in `PublicNavbar` (state, Menu button with aria-expanded and aria-controls, panel, close on link click and Escape).
+- Public site done: `PublicLayout`, `PublicFooter`, `PublicNavbar` (centered logo tab, mobile menu), routes and placeholder pages (Home, Tournaments, Rules, About, Contact).
+- Backend phase 1 done on branch `phase/backend-foundation`: Config, Response, Router, ErrorHandler, Database, HealthController, front controller, smoke test. All tests pass on the laptop.
 - Step 2 (types, mock data) and Step 3 (API layer) are postponed on purpose. Pages use hard-coded placeholder values.
-- Still to do: mobile menu, Home sections (hero, upcoming tournaments, how it works, call to action), admin Pages section, catch-all not-found route, `/login` route, logo image optimization.
-- Then: Step 2 and Step 3 (data layer), and Tournaments.
+- Next: merge phase 1 to `master`, server handoff (srv01 PHP foundation), then backend phase 2 (subjects and pages tables, CRUD API), then connect the admin screens (frontend Steps 2 and 3).
+- Still to do on the frontend: Home sections (hero, upcoming tournaments, how it works, call to action), admin Pages section, catch-all not-found route, `/login` route, logo image optimization.
