@@ -6,8 +6,8 @@ return [
     'app' => [
         // used for links in emails, with no trailing slash.
         'base_url' => 'http://localhost:8000',
-        // false only for plain-HTTP development, true wherever HTTPS is used.
-        'cookie_secure' => false,
+        // used for cookie security. true = only sent over HTTPS, false = sent over HTTP and HTTPS, 'auto' = automatically set based on the request.
+        'cookie_secure' => 'auto',
     ],
     'db' => [
         'dsn' => 'mysql:host=127.0.0.1;port=3306;dbname=<name>;charset=utf8mb4',

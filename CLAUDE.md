@@ -61,7 +61,7 @@ Conventions: PHP 8.3 with `declare(strict_types=1)`. Namespace `App\...` maps to
 
 - nginx + PHP-FPM 8.3 + MySQL 8.0 on one small machine at home. Reachable only on the home network, Tailscale and demo links: no public domain, no Let's Encrypt, no `.htaccess`.
 - Nothing is built on the server. React is built locally, `vendor/` is built with `composer install --no-dev --optimize-autoloader`. A deploy uploads only `public`, `src`, `private`, `vendor`; `config/`, `database/` and `tests/` are never uploaded.
-- The server has its own `config.php`. The cookie `Secure` flag and `base_url` are read from config, never hard-coded. React uses relative `/api/...` URLs.
+- The server has its own `config.php`. `base_url` is read from config. `app.cookie_secure` accepts `true`, `false` or `'auto'` (the default): `auto` means Secure only when `($_SERVER['HTTPS'] ?? '') === 'on'` (nginx sets it on the HTTPS demo link and leaves it empty on the LAN), and never from `X-Forwarded-Proto`. Any CSRF or Origin check compares against the request's own host, never a fixed `apexthrone.test`, or logins fail on the demo link. React uses relative `/api/...` URLs.
 - `GET /api/health` must always return 200 JSON without touching the database (the deploy health check).
 - Group deploy is live: `srv.json` uses `components` (the PHP backend listed before the static frontend), and the GitHub Actions workflow builds both on the runner (`composer install` for the backend, `npm run build` for the frontend) and deploys them as one group. Full details: the srv01 Server Specification PDF and the ApexThrone Deployment Contract doc.
 
@@ -87,7 +87,7 @@ Conventions: PHP 8.3 with `declare(strict_types=1)`. Namespace `App\...` maps to
 - Step 1 complete.
 - Admin dashboard (professor's request: design with placeholders only): Subjects section done (list, view, new, edit, delete) with shared components (`PageHeader`, `LinkButton`, `BackLink`, `Button`, `TextField`, `SelectField`, `CheckboxField`, `SubjectForm`).
 - Public site done: `PublicLayout`, `PublicFooter`, `PublicNavbar` (centered logo tab, mobile menu), routes and placeholder pages (Home, Tournaments, Rules, About, Contact).
-- Backend phase 1 done and merged to `master` (PR #1): Config, Response, Router, ErrorHandler, Database, HealthController, front controller, smoke test (`dev` and `server` modes). All tests pass on the laptop. Deployed to srv01 together with the frontend as a group.
+- Backend phase 1 done and merged to `master` (PR #1): Config, Response, Router, ErrorHandler, Database, HealthController, front controller, smoke test (`dev` and `server` modes). All tests pass on the laptop. Deployed to srv01 together with the frontend as a group, and the smoke test passes on srv01 in `server` mode (20 of 20).
 - Step 2 (types, mock data) and Step 3 (API layer) are postponed on purpose. Pages use hard-coded placeholder values.
-- Next: confirm the smoke test passes on srv01 (`bash backend/tests/smoke.sh http://apexthrone.test server`), then backend phase 2 (subjects and pages tables, CRUD API), then connect the admin screens (frontend Steps 2 and 3).
+- Next: backend phase 2 (subjects and pages tables, CRUD API), then connect the admin screens (frontend Steps 2 and 3). Re-run `bash backend/tests/smoke.sh http://apexthrone.test server` after each deploy.
 - Still to do on the frontend: Home sections (hero, upcoming tournaments, how it works, call to action), admin Pages section, catch-all not-found route, `/login` route, logo image optimization.
