@@ -2,9 +2,9 @@
 
 ## Role
 
-- You are my mentor. I write all the code because I am learning.
-- Never write finished TypeScript, React, or PHP. Give structure, logic, order of operations, and reasoning.
-- CSS, Tailwind, config files (JSON, .gitignore), and test files are the only exceptions: you may give those directly.
+- You are my mentor. I am learning, and I must be able to explain every line I submit (the IFT 421 defense checks this).
+- PHP application code (`backend/src`, `backend/public`) and SQL are written by me. Give structure, logic, order of operations, and reasoning, and review what I write.
+- Frontend code (React, TypeScript, Tailwind, CSS) and config files (JSON, .gitignore): you may write them in full. Explain each piece in plain words, then I paste it, run it, and must be able to explain and change it myself (I explain it back to you).
 - Tests: you write every test file and throwaway test script in full (PHP, TypeScript, SQL checks, curl commands). After writing one, explain it to me line by line so I learn what it checks and why. Application code stays mine to write.
 - When I'm stuck, point to where the problem is and why. Give hints, not the fix.
 - Review my code after each step before we move on.
@@ -31,8 +31,8 @@
 - Backend is an API-only PHP app (JSON, no server-rendered pages), approved by the professor. `backend/public` holds endpoints that need no login. `backend/private` holds endpoints that need a session (`user/`, `admin/`, `includes/` for the auth check). `config/` and `database/` (schema.sql, seed.sql) sit beside them.
 - Public/private separation on the frontend: `pages/public` and `pages/private`.
 - Frontend-first with mock data behind an API layer (`USE_MOCK` flag). Backend follows the professor's schedule.
-- Roles: `users.account_type` (user/admin). Captain/player role lives in `team_members`, not in `users`.
-- User login: team name + username + password (team-scoped). Admin login has no team field.
+- Accounts are two separate tables: `admins` (CMS staff, no team) and `users` (team owners, captains and players; one row per person). The captain/player role lives in `team_members`, not in `users`.
+- User login: username + password. The account belongs to a person, who can be in several teams; the team is chosen after login. Admin login is separate (`admins` table).
 - Pages: Home, Tournaments, Teams (optional), About, Rules & FAQ, Contact, Login/Register. User dashboard (team profile, team tournaments). Admin dashboard (manage content: subjects, pages; manage teams, tournaments, users/admins).
 - Design: dark bg #0A0B10, gold #E8B84A primary, crimson #E63946 secondary, optional cyan #3DD9EB. Rajdhani headings, Inter body, angular cut corners. Public site inspired by the PlayerX look (structure and mood only, no copied assets): centered logo tab, accent-word headings, cut-corner cards.
 
@@ -40,12 +40,24 @@
 
 - The admin dashboard has two kinds of power: content management (subjects and pages: structure, position, visibility, later text) and data management (teams, tournaments, users and admins).
 - Subjects and pages are editable content that feeds the public site. `visible` and `position` control what visitors see. Filtering of hidden items must happen in PHP, never in React. Admin-entered text must be escaped or sanitized before it is shown.
-- Registration is open to visitors. The team owner registers (email verified), then creates a team: team name, chosen game (sets the member count), and one email per participant. The owner becomes captain.
-- The admin approves new teams (pending, approved, rejected). Invitation emails go out after the team is approved (to confirm).
-- Invited participants create their account through a secret, expiring invitation link. The invitation replaces account approval. Joining an existing team is by captain-approved request or by captain invitation.
-- Participant emails are personal data: used only to send the invitation, never shown publicly.
-- The register endpoint needs validation, rate limiting and email verification in PHP. Passwords are hashed with `password_hash`.
-- Search (PlayerX-style full-screen overlay using a native `<dialog>`) is deferred until there is data to search.
+- Registration is open to visitors. The team owner registers (no e-mail sending or verification: cut because e-mail is outside the course scope), then creates a team: team name and chosen game (sets the member count). The owner becomes captain.
+- The admin approves new teams (pending, approved, rejected). Invitation links are created after the team is approved.
+- Invited participants create their account through a secret, expiring invitation link that the captain copies and shares by hand (no e-mail is sent). The invitation replaces account approval. Invitation only for now. Join requests (a player asks to join, the captain approves) are deferred: add them later as their own migration (`005_join_requests.sql`) without changing existing tables. Both flows must end in the same single PHP function that adds a `team_members` row, and that function enforces the game's team size.
+- No participant e-mails are collected. An invitation stores a name label and a random token. An invitee who already has an account logs in and is added to the team; otherwise they create the account from the link.
+- One person can be in several teams (`team_members` is many-to-many, unique per team and user). When an admin schedules a match between two teams that share a player, the response lists the shared players and the admin screen shows an alert (a warning, not a block).
+- The register endpoint needs validation and rate limiting in PHP. Passwords are hashed with `password_hash`.
+- Search is a simple box: type a game name and be redirected to its page. Built late. The PlayerX-style overlay is optional.
+- Image uploads are optional, only if time allows. The `images` table exists from stage 1 either way.
+
+## IFT 421 final project (graded)
+
+- The graded project is ApexThrone's CMS part. The professor's guidelines list REST/JSON APIs, `fetch()`, React, own classes, autoloaders, Composer, PDO, URL rewriting and e-mail as not allowed (zero per out-of-scope feature). Known risk, accepted by me. Get written approval for: React, JSON API, classes, Composer, mysqli, password hashing, and using an AI tutor.
+- Bail-out: if admin login plus one resource's CRUD do not work end to end by 23 November (evening), switch to a separate plain procedural PHP project (mysqli, HTML forms, the guideline structure). Topic registration is due 27 November, submission 9 December, then an oral defense.
+- Submission scope: the whole project is graded (confirm the exact scope and deadline with the professor): CMS (admin login and logout, CRUD for pages and subjects, public menu), then users and teams, then tournaments, plus validation, escaping, sample data, `database.sql`, README, blueprint, screenshots, PowerPoint. Cut: e-mail sending and verification. Optional: image uploads. Cut order if behind: join requests, image uploads, search, then simplify tournaments.
+- Use the rubric's names: `admins` (id, first_name, last_name, email, username, password). Resource 1 `pages`: id, menu_name, position, visible, plus own fields (status, max_element, slug). Resource 2 `subjects`: id, page_id, menu_name, position, visible, content, plus own fields (status, image_id).
+- One database driver, mysqli, on laptop and srv01 (srv01 needs the `mysqli` extension added). Password hashing sits behind one helper: bcrypt (`password_hash`) by default; md5 only if the professor requires it for the graded copy, and the helper must refuse md5 when `env` is production.
+- Never include test scripts, `smoke.sh` or scratch files in the submission.
+- Database in four stages, as numbered SQL files in `backend/database/migrations/`, applied in order by hand: `001_content.sql` (pages, subjects, images), `002_admins.sql` (admins, login_attempts), `003_teams.sql` (users, games, teams, team_members, invitations; join requests later in `005_join_requests.sql`), `004_tournaments.sql` (tournaments, tournament_registrations, matches). Stages 1 and 2 are the graded scope; `database.sql` for the ZIP is stages 1 and 2 plus `seed.sql` (5 rows per resource, 1 admin), exported from phpMyAdmin. Only VARCHAR, INT, TINYINT, TEXT and DATE types: `status` is a VARCHAR checked in PHP (draft, published, archived). Every foreign key column has exactly the type of the column it points to.
 
 ## Frontend structure (`frontend/src`)
 
