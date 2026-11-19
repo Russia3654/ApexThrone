@@ -49,15 +49,12 @@
 - Search is a simple box: type a game name and be redirected to its page. Built late. The PlayerX-style overlay is optional.
 - Image uploads are optional, only if time allows. The `images` table exists from stage 1 either way.
 
-## IFT 421 final project (graded)
+## Database and backend decisions
 
-- The graded project is ApexThrone's CMS part. The professor's guidelines list REST/JSON APIs, `fetch()`, React, own classes, autoloaders, Composer, PDO, URL rewriting and e-mail as not allowed (zero per out-of-scope feature). Known risk, accepted by me. Get written approval for: React, JSON API, classes, Composer, mysqli, password hashing, and using an AI tutor.
-- Bail-out: if admin login plus one resource's CRUD do not work end to end by 23 November (evening), switch to a separate plain procedural PHP project (mysqli, HTML forms, the guideline structure). Topic registration is due 27 November, submission 9 December, then an oral defense.
-- Submission scope: the whole project is graded (confirm the exact scope and deadline with the professor): CMS (admin login and logout, CRUD for pages and subjects, public menu), then users and teams, then tournaments, plus validation, escaping, sample data, `database.sql`, README, blueprint, screenshots, PowerPoint. Cut: e-mail sending and verification. Optional: image uploads. Cut order if behind: join requests, image uploads, search, then simplify tournaments.
-- Use the rubric's names: `admins` (id, first_name, last_name, email, username, password). Resource 1 `pages`: id, menu_name, position, visible, plus own fields (status, max_element, slug). Resource 2 `subjects`: id, page_id, menu_name, position, visible, content, plus own fields (status, image_id).
+- Course context and deadlines live in `CLAUDE.local.md` (private, git-ignored).
+- Use the course rubric's names: `admins` (id, first_name, last_name, email, username, password). Resource 1 `pages`: id, menu_name, position, visible, plus own fields (status, max_element, slug). Resource 2 `subjects`: id, page_id, menu_name, position, visible, content, plus own fields (status, image_id).
 - One database driver, mysqli, on laptop and srv01 (srv01 needs the `mysqli` extension added). Password hashing sits behind one helper: bcrypt (`password_hash`) by default; md5 only if the professor requires it for the graded copy, and the helper must refuse md5 when `env` is production.
-- Never include test scripts, `smoke.sh` or scratch files in the submission.
-- Database in four stages, as numbered SQL files in `backend/database/migrations/`, applied in order by hand: `001_content.sql` (pages, subjects, images), `002_admins.sql` (admins, login_attempts), `003_teams.sql` (users, games, teams, team_members, invitations; join requests later in `005_join_requests.sql`), `004_tournaments.sql` (tournaments, tournament_registrations, matches). Stages 1 and 2 are the graded scope; `database.sql` for the ZIP is stages 1 and 2 plus `seed.sql` (5 rows per resource, 1 admin), exported from phpMyAdmin. Only VARCHAR, INT, TINYINT, TEXT and DATE types: `status` is a VARCHAR checked in PHP (draft, published, archived). Every foreign key column has exactly the type of the column it points to.
+- Database in four stages, as numbered SQL files in `backend/database/migrations/`, applied in order by hand: `001_content.sql` (pages, subjects, images), `002_admins.sql` (admins, login_attempts), `003_teams.sql` (users, games, teams, team_members, invitations; join requests later in `005_join_requests.sql`), `004_tournaments.sql` (tournaments, tournament_registrations, matches). Stages 1 and 2 (the CMS core) come first. Prefer VARCHAR, INT, TINYINT, TEXT and DATE types: `status` is a VARCHAR checked in PHP (draft, published, archived). Every foreign key column has exactly the type of the column it points to.
 
 ## Frontend structure (`frontend/src`)
 

@@ -6,6 +6,9 @@ graphify-out/
 .claude/settings.local.json
 .claude/settings.json
 
+# Private Claude notes
+CLAUDE.local.md
+
 # Backend secrets
 backend/config/config.php
 backend/vendor/
