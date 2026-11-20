@@ -4,23 +4,15 @@ return [
     // allowed values ('development', 'production').
     'env' => 'development',
     'app' => [
-        // used for links in emails, with no trailing slash.
+        // base URL of the site, with no trailing slash
         'base_url' => 'http://localhost:8000',
         // used for cookie security. true = only sent over HTTPS, false = sent over HTTP and HTTPS, 'auto' = automatically set based on the request.
         'cookie_secure' => 'auto',
     ],
     'db' => [
-        'dsn' => 'mysql:host=127.0.0.1;port=3306;dbname=<name>;charset=utf8mb4',
+        'host' => 'localhost',
+        'name' => 'apexthrone',
         'user' => '<db user>',
         'password' => '<db password>',
-    ],
-    'mail' => [
-        // 'smtp' or 'log'
-        'transport' => 'log',
-        'host' => '',
-        'port' => 587,
-        'user' => '',
-        'password' => '',
-        'from' => '',
     ],
 ];
