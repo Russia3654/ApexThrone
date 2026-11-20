@@ -8,6 +8,8 @@ return [
         'base_url' => 'http://localhost:8000',
         // used for cookie security. true = only sent over HTTPS, false = sent over HTTP and HTTPS, 'auto' = automatically set based on the request.
         'cookie_secure' => 'auto',
+        // 'bcrypt' (default) or 'md5' (refused when env is 'production').
+        'password_algo' => 'bcrypt',
     ],
     'db' => [
         'host' => 'localhost',
