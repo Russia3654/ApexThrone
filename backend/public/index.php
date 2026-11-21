@@ -5,6 +5,7 @@ use App\Core\Router;
 use App\Core\Config;
 use App\Core\ErrorHandler;
 use App\Controllers\HealthController;
+use App\Controllers\AdminAuthController;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -12,6 +13,8 @@ ErrorHandler::register();
 $config = new Config(dirname(__DIR__) . '/config/config.php');
 $router = new Router();
 $health = new HealthController($config);
+$auth = new AdminAuthController($config);
 $router->add('GET', '/health', [$health, 'status']);
 $router->add('GET', '/health/db', [$health, 'db']);
+$router->add('POST', '/admin/login', [$auth, 'login']);
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
