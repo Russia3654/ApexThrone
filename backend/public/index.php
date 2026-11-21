@@ -17,4 +17,6 @@ $auth = new AdminAuthController($config);
 $router->add('GET', '/health', [$health, 'status']);
 $router->add('GET', '/health/db', [$health, 'db']);
 $router->add('POST', '/admin/login', [$auth, 'login']);
+$router->add('GET', '/admin/me', [$auth, 'me']);
+$router->add('POST', '/admin/logout', [$auth, 'logout']);
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\AdminGuard;
 use App\Core\Config;
 use App\Core\Database;
 use App\Core\Password;
@@ -49,11 +50,47 @@ final class AdminAuthController
         (new Session())->start($this->config);
         session_regenerate_id(true);
         $_SESSION['admin_id'] = (int) $match_row['ID'];
+        $_SESSION['last_activity'] = time();
         Response::json(['admin' => [
             'id'         => (int) $match_row['ID'],
             'username'   => $match_row['username'],
             'first_name' => $match_row['first_name'],
             'last_name'  => $match_row['last_name'],
         ]]);
+    }
+
+    public function me(): void
+    {
+        $id = (new AdminGuard())->require($this->config);
+        if ($id === null) {
+            return;
+        }
+        $mysqli = (new Database($this->config))->connection();
+        $query_search = $mysqli->prepare('SELECT ID, first_name, last_name, username FROM admins WHERE ID = ?');
+        $query_search->bind_param('i', $id);
+        $query_search->execute();
+        $match_row = $query_search->get_result()->fetch_assoc();
+        if ($match_row === null) {
+            $_SESSION = [];
+            session_destroy();
+            Response::error('Not logged in', 401);
+            return;
+        }
+        Response::json(['admin' => [
+            'id'         => (int) $match_row['ID'],
+            'username'   => $match_row['username'],
+            'first_name' => $match_row['first_name'],
+            'last_name'  => $match_row['last_name'],
+        ]]);
+    }
+
+    public function logout(): void
+    {
+        (new Session())->start($this->config);
+        $_SESSION = [];
+        $param = session_get_cookie_params();
+        setcookie(session_name(), '', ['expires' => time() - 3600, 'path' => $param['path'], 'secure' => $param['secure'], 'httponly' => $param['httponly'], 'samesite' => $param['samesite']]);
+        session_destroy();
+        Response::json(['ok' => true]);
     }
 }
