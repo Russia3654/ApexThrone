@@ -25,4 +25,5 @@ $router->add('POST', '/admin/logout', [$auth, 'logout']);
 $router->add('GET',  '/admin/pages', [$pages, 'list']);
 $router->add('POST', '/admin/pages', [$pages, 'create']);
 $router->add('GET', '/admin/page', [$pages, 'show']);
+$router->add('POST', '/admin/page/update', [$pages, 'update']);
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);

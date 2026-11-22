@@ -12,8 +12,8 @@ use App\Core\Response;
 final class PagesController
 {
     private array $haystack = ['draft', 'published', 'archived'];
-    public function __construct(private Config $config) {}
 
+    public function __construct(private Config $config) {}
     public function create(): void
     {
         if ((new AdminGuard())->require($this->config) === null) {
@@ -53,7 +53,8 @@ final class PagesController
         $match_row = $this->findPage($newID);
         Response::json(['page' => $this->format($match_row)], 201);
     }
-    public function list(): void {
+    public function list(): void
+    {
         if ((new AdminGuard())->require($this->config) === null) {
             return;
         }
@@ -64,7 +65,8 @@ final class PagesController
         $pages = array_map([$this, 'format'], $rows_founds);
         Response::json(['pages' => $pages]);
     }
-    public function show():void {
+    public function show(): void
+    {
         if ((new AdminGuard())->require($this->config) === null) {
             return;
         }
@@ -77,7 +79,52 @@ final class PagesController
             Response::error('Page not found', 404);
             return;
         }
-        Response::json(['page'=> $this->format($match_row)]);
+        Response::json(['page' => $this->format($match_row)]);
+    }
+    public function update(): void
+    {
+        if ((new AdminGuard())->require($this->config) === null) {
+            return;
+        }
+        $id = $this->readId();
+        if ($id === null) {
+            return;
+        }
+        $body = $this->readBody();
+        if ($body === null) {
+            return;
+        }
+        $page = $this->validate($body);
+        if ($page === null) {
+            return;
+        }
+        if ($this->findPage($id) === null) {
+            Response::error('Page not found', 404);
+            return;
+        }
+        $mysqli = (new Database($this->config))->connection();
+        $query_update = $mysqli->prepare('UPDATE pages SET menu_name = ?, slug = ?, `position` = ?, visible = ?, status = ?, max_element = ? WHERE ID = ?');
+        $query_update->bind_param(
+            'ssiisii',
+            $page['menu_name'],
+            $page['slug'],
+            $page['position'],
+            $page['visible'],
+            $page['status'],
+            $page['max_element'],
+            $id,
+        );
+
+        try {
+            $query_update->execute();
+        } catch (\mysqli_sql_exception $e) {
+            if ($e->getCode() === 1062) {
+                Response::error('Slug already used', 409);
+                return;
+            }
+            throw $e;
+        }
+        Response::json(['page' => $this->format($this->findPage($id))]);
     }
 
     private function readBody(): ?array
@@ -106,7 +153,7 @@ final class PagesController
             !is_int($max_element) || !preg_match('/^[a-z0-9-]+$/', $slug) ||
             $menu_name === '' || $slug === '' ||
             $position < 1 || !in_array($visible, [0, 1], true) ||
-            strlen($menu_name) > 100|| strlen($slug) > 100 ||
+            strlen($menu_name) > 100 || strlen($slug) > 100 ||
             $max_element < 1 || $max_element > 100
         ) {
             Response::error('Invalid data', 400);
@@ -118,7 +165,8 @@ final class PagesController
             'position' => $position,
             'visible' => $visible,
             'status' => $status,
-            'max_element' => $max_element];
+            'max_element' => $max_element
+        ];
     }
     private function format(array $row): array
     {
@@ -134,20 +182,21 @@ final class PagesController
             'updated_at' => $row['updated_at'],
         ];
     }
-    private function readId(): ?int {
+    private function readId(): ?int
+    {
         $id = $_GET['id'] ?? null;
-        if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false){
+        if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
             Response::error('Invalid id', 400);
             return null;
         }
         return (int) $id;
     }
-    private function findPage(int $id): ?array{
+    private function findPage(int $id): ?array
+    {
         $mysqli = (new Database($this->config))->connection();
         $query_search = $mysqli->prepare('SELECT ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at  FROM pages WHERE ID = ?');
         $query_search->bind_param('i', $id);
         $query_search->execute();
         return $query_search->get_result()->fetch_assoc();
     }
-
 }
