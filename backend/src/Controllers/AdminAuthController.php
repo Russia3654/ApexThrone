@@ -13,6 +13,7 @@ use App\Core\Session;
 
 final class AdminAuthController
 {
+    private const MAX_ATTEMPTS = 5;
     public function __construct(private Config $config) {}
 
     public function login(): void
@@ -36,16 +37,37 @@ final class AdminAuthController
         }
 
         $mysqli = (new Database($this->config))->connection();
+        $query_search_attempts  = $mysqli->prepare('SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)');
+        $query_search_attempts->bind_param('s', $username);
+        $query_search_attempts->execute();
+        $attempts = (int) $query_search_attempts->get_result()->fetch_row()[0];
+
+        if ($attempts >= self::MAX_ATTEMPTS) {
+            header('Retry-After: 900');
+            Response::error('Too many attempts, try again later', 429);
+            return;
+        }
+
         $query_search = $mysqli->prepare('SELECT ID, first_name, last_name, username, password FROM admins WHERE username = ?');
         $query_search->bind_param('s', $username);
         $query_search->execute();
         $match_row = $query_search->get_result()->fetch_assoc();
 
+
+
         $password_checker = new Password($this->config);
         if ($match_row === null || !$password_checker->verify($password, $match_row['password'])) {
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+            $query_insert = $mysqli->prepare('INSERT INTO login_attempts (identifier, ip_address) VALUES (?, ?)');
+            $query_insert->bind_param('ss', $username, $ip);
+            $query_insert->execute();
             Response::error('Invalid credentials', 401);
             return;
         }
+
+        $query_delete = $mysqli->prepare('DELETE FROM login_attempts WHERE identifier = ?');
+        $query_delete->bind_param('s', $username);
+        $query_delete->execute();
 
         (new Session())->start($this->config);
         session_regenerate_id(true);
