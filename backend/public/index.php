@@ -8,6 +8,8 @@ use App\Core\ErrorHandler;
 use App\Controllers\HealthController;
 use App\Controllers\AdminAuthController;
 use App\Controllers\PagesController;
+use App\Core\OriginCheck;
+use App\Core\Response;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -27,4 +29,8 @@ $router->add('POST', '/admin/pages', [$pages, 'create']);
 $router->add('GET', '/admin/page', [$pages, 'show']);
 $router->add('POST', '/admin/page/update', [$pages, 'update']);
 $router->add('POST', '/admin/page/delete', [$pages, 'delete']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !(new OriginCheck())->check()) {
+    Response::error('Forbidden', 403);
+    exit;
+}
 $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
