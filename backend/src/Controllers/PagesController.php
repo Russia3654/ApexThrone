@@ -126,6 +126,26 @@ final class PagesController
         }
         Response::json(['page' => $this->format($this->findPage($id))]);
     }
+    public function delete(): void
+    {
+        if ((new AdminGuard())->require($this->config) === null) {
+            return;
+        }
+        $id = $this->readId();
+        if ($id === null) {
+            return;
+        }
+
+        $mysqli = (new Database($this->config))->connection();
+        $query_delete = $mysqli->prepare('DELETE FROM pages WHERE ID = ?');
+        $query_delete->bind_param('i', $id);
+        $query_delete->execute();
+        if ($query_delete->affected_rows === 0) {
+            Response::error('Page not found', 404);
+            return;
+        }
+        Response::json(['ok' => true]);
+    }
 
     private function readBody(): ?array
     {

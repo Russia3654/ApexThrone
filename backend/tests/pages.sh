@@ -71,6 +71,7 @@ check 'duplicate slug answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
 # 7. visible = 0 must be accepted (it used to be rejected by a logic bug)
 call POST /admin/pages "{\"menu_name\":\"Hidden\",\"slug\":\"test-hidden-$suffix\",\"position\":2,\"visible\":0,\"status\":\"draft\",\"max_element\":10}"
 check 'visible 0 is accepted' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+hidden_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 check 'visible 0 comes back as false' "$(grep -q '"visible":false' "$body" && echo 1 || echo 0)"
 
 # 8. bad input -> 400
@@ -195,6 +196,44 @@ check 'bad data on a missing page answers 400, not 404' "$([ "$code" = 400 ] && 
 
 call GET "/admin/page/update?id=$page_id"
 check 'GET on the update route is refused (not 200)' "$([ "$code" != 200 ] && echo 1 || echo 0)"
+
+# 12. delete a page (slice 4); this also cleans up the pages the script created
+call POST "/admin/page/delete?id=$page_id" '' 0
+check 'delete without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+call GET "/admin/page?id=$page_id"
+check 'a delete without a login removed nothing' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+# a GET must never delete (course rule: never change data on a GET)
+call GET "/admin/page/delete?id=$page_id"
+check 'GET on the delete route is refused (not 200)' "$([ "$code" != 200 ] && echo 1 || echo 0)"
+call GET "/admin/page?id=$page_id"
+check 'a GET on the delete route removed nothing' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+call POST '/admin/page/delete?id=abc'
+check 'delete with id "abc" answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/page/delete'
+check 'delete with no id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/page/delete?id=999999999'
+check 'delete an id that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+call POST "/admin/page/delete?id=$page_id"
+check 'delete a real page answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'delete answers {"ok":true}' "$(grep -q '"ok":true' "$body" && echo 1 || echo 0)"
+
+call GET "/admin/page?id=$page_id"
+check 'show after delete answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+call GET /admin/pages
+check 'the deleted page is gone from the list' "$(grep -q "\"slug\":\"$slug\"" "$body" && echo 0 || echo 1)"
+check 'the other test page is still in the list' "$(grep -q "\"slug\":\"$slug2\"" "$body" && echo 1 || echo 0)"
+
+call POST "/admin/page/delete?id=$page_id"
+check 'deleting the same page twice answers 404 the second time' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# cleanup: remove the other pages this run created
+call POST "/admin/page/delete?id=$page2_id"
+check 'cleanup: second test page deleted' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+call POST "/admin/page/delete?id=$hidden_id"
+check 'cleanup: hidden test page deleted' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 
 echo
 echo 'Cleanup (phpMyAdmin): DELETE FROM pages WHERE slug LIKE '"'"'test-%'"'"';'
