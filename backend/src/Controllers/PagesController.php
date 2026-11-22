@@ -39,18 +39,12 @@ final class PagesController
             $page['max_element'],
         );
 
-        try {
-            $query_insert->execute();
-        } catch (\mysqli_sql_exception $e) {
-            if ($e->getCode() === 1062) {
-                Response::error('Slug already used', 409);
-                return;
-            }
-            throw $e;
+        if (!$this->validateQuery($query_insert)) {
+            return;
         }
 
         $newID = $mysqli->insert_id;
-        $match_row = $this->findPage($newID);
+        $match_row = $this->findPage($mysqli,$newID);
         Response::json(['page' => $this->format($match_row)], 201);
     }
     public function list(): void
@@ -74,7 +68,8 @@ final class PagesController
         if ($id === null) {
             return;
         }
-        $match_row = $this->findPage($id);
+        $mysqli = (new Database($this->config))->connection();
+        $match_row = $this->findPage($mysqli, $id);
         if ($match_row === null) {
             Response::error('Page not found', 404);
             return;
@@ -98,11 +93,11 @@ final class PagesController
         if ($page === null) {
             return;
         }
-        if ($this->findPage($id) === null) {
+        $mysqli = (new Database($this->config))->connection();
+        if ($this->findPage($mysqli, $id) === null) {
             Response::error('Page not found', 404);
             return;
         }
-        $mysqli = (new Database($this->config))->connection();
         $query_update = $mysqli->prepare('UPDATE pages SET menu_name = ?, slug = ?, `position` = ?, visible = ?, status = ?, max_element = ? WHERE ID = ?');
         $query_update->bind_param(
             'ssiisii',
@@ -115,16 +110,10 @@ final class PagesController
             $id,
         );
 
-        try {
-            $query_update->execute();
-        } catch (\mysqli_sql_exception $e) {
-            if ($e->getCode() === 1062) {
-                Response::error('Slug already used', 409);
-                return;
-            }
-            throw $e;
+        if (!$this->validateQuery($query_update)) {
+            return;
         }
-        Response::json(['page' => $this->format($this->findPage($id))]);
+        Response::json(['page' => $this->format($this->findPage($mysqli, $id))]);
     }
     public function delete(): void
     {
@@ -211,12 +200,23 @@ final class PagesController
         }
         return (int) $id;
     }
-    private function findPage(int $id): ?array
+    private function findPage(\mysqli $mysqli, int $id): ?array
     {
-        $mysqli = (new Database($this->config))->connection();
         $query_search = $mysqli->prepare('SELECT ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at  FROM pages WHERE ID = ?');
         $query_search->bind_param('i', $id);
         $query_search->execute();
         return $query_search->get_result()->fetch_assoc();
+    }
+    private function validateQuery(\mysqli_stmt $query): bool{
+        try {
+            $query->execute();
+            return true;
+        } catch (\mysqli_sql_exception $e) {
+            if ($e->getCode() === 1062) {
+                Response::error('Slug already used', 409);
+                return false;
+            }
+            throw $e;
+        }
     }
 }
