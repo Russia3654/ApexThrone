@@ -50,10 +50,7 @@ final class PagesController
         }
 
         $newID = $mysqli->insert_id;
-        $query_search = $mysqli->prepare('SELECT ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at  FROM pages WHERE ID = ?');
-        $query_search->bind_param('i', $newID);
-        $query_search->execute();
-        $match_row = $query_search->get_result()->fetch_assoc();
+        $match_row = $this->findPage($newID);
         Response::json(['page' => $this->format($match_row)], 201);
     }
     public function list(): void {
@@ -66,6 +63,21 @@ final class PagesController
         $rows_founds = $query_search->fetch_all(MYSQLI_ASSOC);
         $pages = array_map([$this, 'format'], $rows_founds);
         Response::json(['pages' => $pages]);
+    }
+    public function show():void {
+        if ((new AdminGuard())->require($this->config) === null) {
+            return;
+        }
+        $id = $this->readId();
+        if ($id === null) {
+            return;
+        }
+        $match_row = $this->findPage($id);
+        if ($match_row === null) {
+            Response::error('Page not found', 404);
+            return;
+        }
+        Response::json(['page'=> $this->format($match_row)]);
     }
 
     private function readBody(): ?array
@@ -122,4 +134,20 @@ final class PagesController
             'updated_at' => $row['updated_at'],
         ];
     }
+    private function readId(): ?int {
+        $id = $_GET['id'] ?? null;
+        if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false){
+            Response::error('Invalid id', 400);
+            return null;
+        }
+        return (int) $id;
+    }
+    private function findPage(int $id): ?array{
+        $mysqli = (new Database($this->config))->connection();
+        $query_search = $mysqli->prepare('SELECT ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at  FROM pages WHERE ID = ?');
+        $query_search->bind_param('i', $id);
+        $query_search->execute();
+        return $query_search->get_result()->fetch_assoc();
+    }
+
 }

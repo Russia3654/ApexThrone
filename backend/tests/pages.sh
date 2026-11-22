@@ -58,6 +58,7 @@ check 'create answers 201' "$([ "$code" = 201 ] && echo 1 || echo 0)"
 check 'create returns the new slug' "$(grep -q "\"slug\":\"$slug\"" "$body" && echo 1 || echo 0)"
 check 'create returns visible as true' "$(grep -q '"visible":true' "$body" && echo 1 || echo 0)"
 check 'create returns an id' "$(grep -Eq '"id":[0-9]+' "$body" && echo 1 || echo 0)"
+page_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 
 # 5. the new page shows up in the list
 call GET /admin/pages
@@ -107,6 +108,40 @@ check 'slug over 100 characters answers 400' "$([ "$code" = 400 ] && echo 1 || e
 # 9. a failed create must not leave a row behind
 call GET /admin/pages
 check 'a rejected page was not saved' "$(grep -q 'Bad Slug' "$body" && echo 0 || echo 1)"
+
+# 10. show one page (slice 2)
+call GET "/admin/page?id=$page_id" '' 0
+check 'show without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+
+call GET "/admin/page?id=$page_id"
+check 'show a real page answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'show returns the right slug' "$(grep -q "\"slug\":\"$slug\"" "$body" && echo 1 || echo 0)"
+check 'show returns the same id that create gave' "$(grep -q "\"id\":$page_id" "$body" && echo 1 || echo 0)"
+
+call GET '/admin/page?id=999999999'
+check 'show an id that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+call GET '/admin/page?id=abc'
+check 'id "abc" answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+check 'a 400 for the id is ONE json answer, not two glued together' "$(grep -q '}{' "$body" && echo 0 || echo 1)"
+
+call GET '/admin/page?id=0'
+check 'id 0 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call GET '/admin/page?id=-1'
+check 'id -1 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call GET '/admin/page?id=5abc'
+check 'id "5abc" answers 400 (not silently cut to 5)' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call GET '/admin/page?id%5B%5D=5'
+check 'id as an array answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call GET '/admin/page'
+check 'missing id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST "/admin/page?id=$page_id"
+check 'POST on the show route is refused (not 200)' "$([ "$code" != 200 ] && echo 1 || echo 0)"
 
 echo
 echo 'Cleanup (phpMyAdmin): DELETE FROM pages WHERE slug LIKE '"'"'test-%'"'"';'
