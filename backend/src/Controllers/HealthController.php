@@ -19,8 +19,8 @@ final class HealthController
 
     public function db(): void
     {
-        $pdo = (new Database($this->config))->pdo();
-        $pdo->query('SELECT 1');
+        $mysqli = (new Database($this->config))->connection();
+        $mysqli->query('SELECT 1');
         Response::json(['db' => 'ok']);
     }
 }
