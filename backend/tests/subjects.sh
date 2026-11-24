@@ -2,6 +2,8 @@
 # Checks for the subjects API: create (slice 1), list and show (slice 2), update and move (slice 3), delete (slice 4).
 # Run from the project root:
 #   ADMIN_PASSWORD='your-dev-password' bash backend/tests/subjects.sh [base-url]
+# Against srv01 add CALL_DELAY=0.3 (about 100 requests, and nginx there answers 429 above ~5 requests per second):
+#   CALL_DELAY=0.3 ADMIN_PASSWORD='...' bash backend/tests/subjects.sh http://apexthrone.test
 # Needs the PHP dev server running, the seed admin, and the pages + subjects tables (001_content.sql).
 # It creates its own test page (slug starting with "test-subj-") and deletes it at the end.
 # Deleting the page also deletes its subjects (ON DELETE CASCADE). If the script stops early, remove leftovers with:
@@ -20,6 +22,7 @@ check() {
 
 # call <method> <path> [json] [use-cookie: 1 or 0] : sets $code, fills $body
 call() {
+    sleep "${CALL_DELAY:-0}"    # pause between calls: set CALL_DELAY=0.3 against srv01, whose nginx limits the request rate
     cookies=()
     if [ "${4:-1}" = "1" ]; then cookies=(-b "$jar" -c "$jar"); fi
     if [ -n "$3" ]; then
