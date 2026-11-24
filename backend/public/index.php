@@ -21,17 +21,25 @@ $health = new HealthController($config);
 $auth = new AdminAuthController($config);
 $pages = new PagesController($config);
 $subjects = new SubjectsController($config);
+
+// Health Check API
 $router->add('GET', '/health', [$health, 'status']);
 $router->add('GET', '/health/db', [$health, 'db']);
+// Login / Logout API
 $router->add('POST', '/admin/login', [$auth, 'login']);
 $router->add('GET', '/admin/me', [$auth, 'me']);
 $router->add('POST', '/admin/logout', [$auth, 'logout']);
-$router->add('GET',  '/admin/pages', [$pages, 'list']);
+// Pages API
 $router->add('POST', '/admin/pages', [$pages, 'create']);
+$router->add('GET',  '/admin/pages', [$pages, 'list']);
 $router->add('GET', '/admin/page', [$pages, 'show']);
 $router->add('POST', '/admin/page/update', [$pages, 'update']);
 $router->add('POST', '/admin/page/delete', [$pages, 'delete']);
+// SUbjects API
 $router->add('POST', '/admin/subjects', [$subjects, 'create']);
+$router->add('GET', '/admin/subjects', [$subjects, 'list']);
+$router->add('GET', '/admin/subject', [$subjects, 'show']);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !(new OriginCheck())->check()) {
     Response::error('Forbidden', 403);
     exit;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks for POST /api/admin/subjects (slice 1 of the subjects API).
+# Checks for the subjects API: create (slice 1), list and show (slice 2).
 # Run from the project root:
 #   ADMIN_PASSWORD='your-dev-password' bash backend/tests/subjects.sh [base-url]
 # Needs the PHP dev server running, the seed admin, and the pages + subjects tables (001_content.sql).
@@ -87,6 +87,7 @@ check 'a page that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 ||
 call POST /admin/subjects "$(subject_json "$page_id")"
 check 'create answers 201' "$([ "$code" = 201 ] && echo 1 || echo 0)"
 check 'create returns an id' "$(grep -Eq '"id":[0-9]+' "$body" && echo 1 || echo 0)"
+subject_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 check 'create returns the page_ID' "$(grep -q "\"page_ID\":$page_id" "$body" && echo 1 || echo 0)"
 check 'create returns the menu_name' "$(grep -q '"menu_name":"Test subject"' "$body" && echo 1 || echo 0)"
 check 'create returns visible as true' "$(grep -q '"visible":true' "$body" && echo 1 || echo 0)"
@@ -100,6 +101,53 @@ check 'an empty content is accepted (201)' "$([ "$code" = 201 ] && echo 1 || ech
 call POST /admin/subjects "$(subject_json "$page_id")"
 check 'a third subject on a page with max_element 2 answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
 check 'the 409 is a JSON error' "$(grep -q '"error"' "$body" && echo 1 || echo 0)"
+
+# ---- slice 2: list and show (the page now holds 2 subjects: "Test subject" at position 1, "Empty" at position 2)
+
+# 8. nothing is readable without a login
+call GET /admin/subjects '' 0
+check 'list without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+call GET "/admin/subject?id=$subject_id" '' 0
+check 'show without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+
+# 9. list everything
+call GET /admin/subjects
+check 'list answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'list returns a "subjects" array' "$(grep -q '"subjects":\[' "$body" && echo 1 || echo 0)"
+check 'list contains the new subjects' "$(grep -q '"menu_name":"Test subject"' "$body" && grep -q '"menu_name":"Empty"' "$body" && echo 1 || echo 0)"
+
+# 10. list filtered by page
+call GET "/admin/subjects?page_ID=$page_id"
+check 'filtered list answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'filtered list holds both subjects of the page' "$(grep -q '"menu_name":"Test subject"' "$body" && grep -q '"menu_name":"Empty"' "$body" && echo 1 || echo 0)"
+first_name=$(grep -Eo '"menu_name":"[^"]*"' "$body" | head -1)
+check 'filtered list is ordered by position (position 1 first)' "$([ "$first_name" = '"menu_name":"Test subject"' ] && echo 1 || echo 0)"
+check 'every subject in the filtered list belongs to the page' "$([ "$(grep -Eo '"page_ID":[0-9]+' "$body" | sort -u)" = "\"page_ID\":$page_id" ] && echo 1 || echo 0)"
+
+call GET '/admin/subjects?page_ID=999999999'
+check 'a filter on a page that does not exist answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'that filter returns an empty list' "$(grep -q '"subjects":\[\]' "$body" && echo 1 || echo 0)"
+
+call GET '/admin/subjects?page_ID=abc'
+check 'a filter that is not a number answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call GET '/admin/subjects?page_ID=0'
+check 'a filter of 0 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call GET '/admin/subjects?page_ID='
+check 'an empty filter answers 400 (a bad filter is never ignored)' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+# 11. show one subject
+call GET "/admin/subject?id=$subject_id"
+check 'show answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'show returns a "subject" object' "$(grep -q '"subject":{' "$body" && echo 1 || echo 0)"
+check 'show returns the right id' "$(grep -q "\"id\":$subject_id," "$body" && echo 1 || echo 0)"
+check 'show returns the right name' "$(grep -q '"menu_name":"Test subject"' "$body" && echo 1 || echo 0)"
+
+call GET '/admin/subject?id=999999999'
+check 'show of an id that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+call GET '/admin/subject?id=abc'
+check 'show with a bad id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call GET '/admin/subject'
+check 'show without an id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
 # cleanup: deleting the page also deletes its subjects (ON DELETE CASCADE)
 call POST "/admin/page/delete?id=$page_id"

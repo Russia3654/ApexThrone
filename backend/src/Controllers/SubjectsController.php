@@ -40,6 +40,9 @@ final class SubjectsController
         }
         $max = (int) $row_found[0];
 
+        // Accepted limit: two requests arriving at the same moment could both pass this
+        // count check and exceed max_element by one. A single admin edits this CMS, so
+        // no lock is used. A transaction with SELECT ... FOR UPDATE would close the gap.
         $query_search = $mysqli->prepare('SELECT COUNT(*) FROM subjects WHERE page_ID = ?');
         $query_search->bind_param('i', $subject['page_ID']);
         $query_search->execute();
@@ -50,7 +53,7 @@ final class SubjectsController
             Response::error('Page is full', 409);
             return;
         }
-        $query_insert = $mysqli->prepare('INSERT INTO subjects(page_ID, menu_name, position, visible, content, status) VALUES (?, ?, ?, ?, ?, ?)');
+        $query_insert = $mysqli->prepare('INSERT INTO subjects(page_ID, menu_name, `position`, visible, content, status) VALUES (?, ?, ?, ?, ?, ?)');
         $query_insert->bind_param(
             'isiiss',
             $subject['page_ID'],
@@ -65,6 +68,47 @@ final class SubjectsController
         $newID = $mysqli->insert_id;
         $match_row = $this->findSubject($mysqli, $newID);
         Response::json(['subject' => $this->format($match_row)], 201);
+    }
+
+    public function list(): void
+    {
+        if ((new AdminGuard())->require($this->config) === null) {
+            return;
+        }
+        $mysqli = (new Database($this->config))->connection();
+        if (!isset($_GET['page_ID'])) {
+            $query_search = $mysqli->query('SELECT ID, page_ID, menu_name, `position`, visible, content, status, image_ID, created_at, updated_at FROM subjects ORDER BY page_ID, `position`, ID');
+        } else {
+            $id = $this->readId('page_ID');
+            if ($id === null) {
+                return;
+            }
+            $query_search = $mysqli->prepare('SELECT ID, page_ID, menu_name, `position`, visible, content, status, image_ID, created_at, updated_at FROM subjects WHERE page_ID = ? ORDER BY page_ID, `position`, ID');
+            $query_search->bind_param('i', $id);
+            $query_search->execute();
+            $query_search = $query_search->get_result();
+        }
+        $rows_founds = $query_search->fetch_all(MYSQLI_ASSOC);
+        $subjects = array_map([$this, 'format'], $rows_founds);
+        Response::json(['subjects' => $subjects]);
+    }
+
+    public function show(): void
+    {
+        if ((new AdminGuard())->require($this->config) === null) {
+            return;
+        }
+        $id = $this->readId();
+        if ($id === null) {
+            return;
+        }
+        $mysqli = (new Database($this->config))->connection();
+        $match_row = $this->findSubject($mysqli, $id);
+        if ($match_row === null) {
+            Response::error('Subject not found', 404);
+            return;
+        }
+        Response::json(['subject' => $this->format($match_row)]);
     }
 
     private function readBody(): ?array
@@ -123,9 +167,19 @@ final class SubjectsController
         ];
     }
 
+    private function readId(string $key = 'id'): ?int
+    {
+        $id = $_GET[$key] ?? null;
+        if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            Response::error('Invalid ' . $key, 400);
+            return null;
+        }
+        return (int) $id;
+    }
+
     private function findSubject(\mysqli $mysqli, int $id): ?array
     {
-        $query_search = $mysqli->prepare('SELECT ID, page_ID, menu_name, position, visible, content, status, image_ID, created_at, updated_at FROM subjects WHERE ID = ?');
+        $query_search = $mysqli->prepare('SELECT ID, page_ID, menu_name, `position`, visible, content, status, image_ID, created_at, updated_at FROM subjects WHERE ID = ?');
         $query_search->bind_param('i', $id);
         $query_search->execute();
         return $query_search->get_result()->fetch_assoc();
