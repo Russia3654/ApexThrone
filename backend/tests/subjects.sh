@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Checks for POST /api/admin/subjects (slice 1 of the subjects API).
+# Run from the project root:
+#   ADMIN_PASSWORD='your-dev-password' bash backend/tests/subjects.sh [base-url]
+# Needs the PHP dev server running, the seed admin, and the pages + subjects tables (001_content.sql).
+# It creates its own test page (slug starting with "test-subj-") and deletes it at the end.
+# Deleting the page also deletes its subjects (ON DELETE CASCADE). If the script stops early, remove leftovers with:
+#   DELETE FROM pages WHERE slug LIKE 'test-subj-%';
+
+BASE="${1:-http://localhost:8000}"
+PASS_OK="${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the seed admin password}"
+failures=0
+body=$(mktemp)
+jar=$(mktemp)    # the "browser": holds the session cookie between calls
+trap 'rm -f "$body" "$jar"' EXIT
+
+check() {
+    if [ "$2" = "1" ]; then echo "PASS - $1"; else echo "FAIL - $1"; failures=$((failures + 1)); fi
+}
+
+# call <method> <path> [json] [use-cookie: 1 or 0] : sets $code, fills $body
+call() {
+    cookies=()
+    if [ "${4:-1}" = "1" ]; then cookies=(-b "$jar" -c "$jar"); fi
+    if [ -n "$3" ]; then
+        code=$(curl -s -o "$body" -w '%{http_code}' "${cookies[@]}" \
+            -X "$1" -H 'Content-Type: application/json' --data "$3" "$BASE/api$2")
+    else
+        code=$(curl -s -o "$body" -w '%{http_code}' "${cookies[@]}" -X "$1" "$BASE/api$2")
+    fi
+}
+
+# subject_json <page id> : a valid subject body for that page
+subject_json() {
+    echo "{\"page_ID\":$1,\"menu_name\":\"Test subject\",\"position\":1,\"visible\":1,\"content\":\"Hello\",\"status\":\"draft\"}"
+}
+
+suffix="$(date +%s)$RANDOM"
+slug="test-subj-$suffix"
+
+# 1. nothing works without a login
+call POST /admin/subjects "$(subject_json 1)" 0
+check 'create without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+
+# 2. log in, then make a test page that holds at most 2 subjects
+call POST /admin/login "{\"username\":\"admin\",\"password\":\"$PASS_OK\"}"
+check 'login answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+call POST /admin/pages "{\"menu_name\":\"Test subjects page\",\"slug\":\"$slug\",\"position\":1,\"visible\":0,\"status\":\"draft\",\"max_element\":2}"
+check 'setup: the test page is created (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+page_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
+
+# 3. bad bodies are refused with 400, and none of them uses up a place on the page
+call POST /admin/subjects 'this is not json'
+check 'a body that is not JSON answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"x\",\"position\":1,\"visible\":1,\"status\":\"draft\"}"
+check 'a missing "content" answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":\"$page_id\",\"menu_name\":\"x\",\"position\":1,\"visible\":1,\"content\":\"c\",\"status\":\"draft\"}"
+check 'page_ID sent as a string answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":0,\"menu_name\":\"x\",\"position\":1,\"visible\":1,\"content\":\"c\",\"status\":\"draft\"}"
+check 'page_ID 0 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"\",\"position\":1,\"visible\":1,\"content\":\"c\",\"status\":\"draft\"}"
+check 'an empty menu_name answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"x\",\"position\":0,\"visible\":1,\"content\":\"c\",\"status\":\"draft\"}"
+check 'position 0 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"x\",\"position\":1,\"visible\":2,\"content\":\"c\",\"status\":\"draft\"}"
+check 'visible 2 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"x\",\"position\":1,\"visible\":1,\"content\":\"c\",\"status\":\"secret\"}"
+check 'an unknown status answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+long=$(head -c 20001 /dev/zero | tr '\0' 'a')
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"x\",\"position\":1,\"visible\":1,\"content\":\"$long\",\"status\":\"draft\"}"
+check 'content of 20001 characters answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+
+# 4. a valid body for a page that does not exist -> 404
+call POST /admin/subjects "$(subject_json 999999999)"
+check 'a page that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# 5. a valid subject
+call POST /admin/subjects "$(subject_json "$page_id")"
+check 'create answers 201' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+check 'create returns an id' "$(grep -Eq '"id":[0-9]+' "$body" && echo 1 || echo 0)"
+check 'create returns the page_ID' "$(grep -q "\"page_ID\":$page_id" "$body" && echo 1 || echo 0)"
+check 'create returns the menu_name' "$(grep -q '"menu_name":"Test subject"' "$body" && echo 1 || echo 0)"
+check 'create returns visible as true' "$(grep -q '"visible":true' "$body" && echo 1 || echo 0)"
+check 'create returns the content' "$(grep -q '"content":"Hello"' "$body" && echo 1 || echo 0)"
+
+# 6. an empty content is allowed (fills the second and last place of the page)
+call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"Empty\",\"position\":2,\"visible\":0,\"content\":\"\",\"status\":\"draft\"}"
+check 'an empty content is accepted (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+
+# 7. the page holds 2 subjects and its max_element is 2 -> the third is refused
+call POST /admin/subjects "$(subject_json "$page_id")"
+check 'a third subject on a page with max_element 2 answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+check 'the 409 is a JSON error' "$(grep -q '"error"' "$body" && echo 1 || echo 0)"
+
+# cleanup: deleting the page also deletes its subjects (ON DELETE CASCADE)
+call POST "/admin/page/delete?id=$page_id"
+check 'cleanup: the test page is deleted (200)' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+echo
+if [ "$failures" -eq 0 ]; then echo 'ALL CHECKS PASSED'; exit 0; fi
+echo "$failures CHECK(S) FAILED"; exit 1
