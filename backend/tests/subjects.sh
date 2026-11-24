@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks for the subjects API: create (slice 1), list and show (slice 2), update and move (slice 3).
+# Checks for the subjects API: create (slice 1), list and show (slice 2), update and move (slice 3), delete (slice 4).
 # Run from the project root:
 #   ADMIN_PASSWORD='your-dev-password' bash backend/tests/subjects.sh [base-url]
 # Needs the PHP dev server running, the seed admin, and the pages + subjects tables (001_content.sql).
@@ -220,9 +220,48 @@ check 'moving to a page that does not exist answers 404' "$([ "$code" = 404 ] &&
 call POST "/admin/subject/update?id=$subject_id" "$(upd_json "$page_b" 'Edited on a full page' 'Again')"
 check 'editing a subject on a full page B (same page) answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 
+# ---- slice 4: delete
+# State now: page A holds subject 2 "Empty" (1 of 2); page B holds subject 1 "Edited on a full page" (1 of 1, full).
+
+# 20. nothing can be deleted without a login
+call POST "/admin/subject/delete?id=$subject2_id" '' 0
+check 'delete without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+call GET "/admin/subject?id=$subject2_id"
+check 'the refused delete changed nothing (the subject still exists)' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+# 21. bad ids
+call POST '/admin/subject/delete?id=abc'
+check 'delete with a bad id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/subject/delete'
+check 'delete without an id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/subject/delete?id=999999999'
+check 'delete of an id that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# 22. a real delete
+call POST "/admin/subject/delete?id=$subject2_id"
+check 'delete answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'delete answers {"ok":true}' "$(grep -q '"ok":true' "$body" && echo 1 || echo 0)"
+call GET "/admin/subject?id=$subject2_id"
+check 'the deleted subject is gone (show answers 404)' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+call GET "/admin/subjects?page_ID=$page_id"
+check 'the deleted subject is no longer in its page list' "$(grep -q '"menu_name":"Empty"' "$body" && echo 0 || echo 1)"
+call POST "/admin/subject/delete?id=$subject2_id"
+check 'deleting the same subject again answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# 23. a delete frees a place: page B was full, now it has room again
+call POST "/admin/subjects" "$(subject_json "$page_b")"
+check 'page B is full: a new subject is refused (409)' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call POST "/admin/subject/delete?id=$subject_id"
+check 'delete of the subject on page B answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+call POST "/admin/subjects" "$(subject_json "$page_b")"
+check 'after the delete, page B accepts a new subject (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+new_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
+
 # cleanup: deleting a page also deletes its subjects (ON DELETE CASCADE)
 call POST "/admin/page/delete?id=$page_b"
 check 'cleanup: the second test page is deleted (200)' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+call GET "/admin/subject?id=$new_id"
+check 'deleting a page also deleted its subject (cascade)' "$([ "$code" = 404 ] && echo 1 || echo 0)"
 call POST "/admin/page/delete?id=$page_id"
 check 'cleanup: the test page is deleted (200)' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 
