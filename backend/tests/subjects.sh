@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks for the subjects API: create (slice 1), list and show (slice 2).
+# Checks for the subjects API: create (slice 1), list and show (slice 2), update and move (slice 3).
 # Run from the project root:
 #   ADMIN_PASSWORD='your-dev-password' bash backend/tests/subjects.sh [base-url]
 # Needs the PHP dev server running, the seed admin, and the pages + subjects tables (001_content.sql).
@@ -96,6 +96,7 @@ check 'create returns the content' "$(grep -q '"content":"Hello"' "$body" && ech
 # 6. an empty content is allowed (fills the second and last place of the page)
 call POST /admin/subjects "{\"page_ID\":$page_id,\"menu_name\":\"Empty\",\"position\":2,\"visible\":0,\"content\":\"\",\"status\":\"draft\"}"
 check 'an empty content is accepted (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+subject2_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 
 # 7. the page holds 2 subjects and its max_element is 2 -> the third is refused
 call POST /admin/subjects "$(subject_json "$page_id")"
@@ -149,7 +150,79 @@ check 'show with a bad id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)
 call GET '/admin/subject'
 check 'show without an id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-# cleanup: deleting the page also deletes its subjects (ON DELETE CASCADE)
+# ---- slice 3: update (and moving a subject to another page)
+# State now: page A (max 2) holds subject 1 "Test subject" (position 1) and subject 2 "Empty" (position 2).
+
+# upd_json <page id> <menu_name> <content> : a valid update body
+upd_json() {
+    echo "{\"page_ID\":$1,\"menu_name\":\"$2\",\"position\":1,\"visible\":1,\"content\":\"$3\",\"status\":\"draft\"}"
+}
+
+# 12. nothing can be changed without a login
+call POST "/admin/subject/update?id=$subject_id" "$(upd_json "$page_id" 'Nope' 'x')" 0
+check 'update without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+
+# 13. editing a subject inside its own FULL page works (page A holds 2 of 2)
+call POST "/admin/subject/update?id=$subject_id" "$(upd_json "$page_id" 'Renamed subject' 'Edited')"
+check 'update on a full page, same page, answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'update returns a "subject" object' "$(grep -q '"subject":{' "$body" && echo 1 || echo 0)"
+check 'update returns the new name' "$(grep -q '"menu_name":"Renamed subject"' "$body" && echo 1 || echo 0)"
+check 'update returns the new content' "$(grep -q '"content":"Edited"' "$body" && echo 1 || echo 0)"
+check 'update keeps the same page_ID' "$(grep -q "\"page_ID\":$page_id" "$body" && echo 1 || echo 0)"
+
+call GET "/admin/subject?id=$subject_id"
+check 'the change is really stored (show returns the new name)' "$(grep -q '"menu_name":"Renamed subject"' "$body" && echo 1 || echo 0)"
+
+# 14. saving the same values again is a success (MySQL reports 0 affected rows, we must not treat it as an error)
+call POST "/admin/subject/update?id=$subject_id" "$(upd_json "$page_id" 'Renamed subject' 'Edited')"
+check 'saving identical values answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+# 15. bad input
+call POST "/admin/subject/update?id=$subject_id" "{\"page_ID\":$page_id,\"menu_name\":\"x\",\"position\":1,\"visible\":2,\"content\":\"c\",\"status\":\"draft\"}"
+check 'update with visible 2 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST "/admin/subject/update?id=999999999" "{\"page_ID\":$page_id,\"menu_name\":\"\",\"position\":1,\"visible\":1,\"content\":\"c\",\"status\":\"draft\"}"
+check 'a bad body on an unknown id answers 400 (validation runs first)' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST "/admin/subject/update?id=$subject_id" 'not json'
+check 'update with a body that is not JSON answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/subject/update?id=abc' "$(upd_json "$page_id" 'x' 'x')"
+check 'update with a bad id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/subject/update' "$(upd_json "$page_id" 'x' 'x')"
+check 'update without an id answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST '/admin/subject/update?id=999999999' "$(upd_json "$page_id" 'x' 'x')"
+check 'update of an id that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# 16. moving: make a second page B that holds only 1 subject
+slug_b="test-subj-b-$suffix"
+call POST /admin/pages "{\"menu_name\":\"Test page B\",\"slug\":\"$slug_b\",\"position\":2,\"visible\":0,\"status\":\"draft\",\"max_element\":1}"
+check 'setup: the second test page is created (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
+page_b=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
+
+call POST "/admin/subject/update?id=$subject_id" "$(upd_json "$page_b" 'Renamed subject' 'Edited')"
+check 'moving a subject to a page with room answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+check 'the answer shows the new page_ID' "$(grep -q "\"page_ID\":$page_b" "$body" && echo 1 || echo 0)"
+
+call GET "/admin/subjects?page_ID=$page_b"
+check 'the moved subject is listed under page B' "$(grep -q '"menu_name":"Renamed subject"' "$body" && echo 1 || echo 0)"
+call GET "/admin/subjects?page_ID=$page_id"
+check 'the moved subject is no longer listed under page A' "$(grep -q '"menu_name":"Renamed subject"' "$body" && echo 0 || echo 1)"
+
+# 17. page B is now full (1 of 1): a second subject cannot move in, and nothing changes
+call POST "/admin/subject/update?id=$subject2_id" "$(upd_json "$page_b" 'Empty' '')"
+check 'moving into a full page answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call GET "/admin/subject?id=$subject2_id"
+check 'the refused move changed nothing (still on page A)' "$(grep -q "\"page_ID\":$page_id" "$body" && echo 1 || echo 0)"
+
+# 18. moving to a page that does not exist
+call POST "/admin/subject/update?id=$subject2_id" "$(upd_json 999999999 'Empty' '')"
+check 'moving to a page that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# 19. the full page B can still edit its own subject
+call POST "/admin/subject/update?id=$subject_id" "$(upd_json "$page_b" 'Edited on a full page' 'Again')"
+check 'editing a subject on a full page B (same page) answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+
+# cleanup: deleting a page also deletes its subjects (ON DELETE CASCADE)
+call POST "/admin/page/delete?id=$page_b"
+check 'cleanup: the second test page is deleted (200)' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 call POST "/admin/page/delete?id=$page_id"
 check 'cleanup: the test page is deleted (200)' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 

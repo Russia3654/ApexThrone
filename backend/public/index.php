@@ -39,6 +39,8 @@ $router->add('POST', '/admin/page/delete', [$pages, 'delete']);
 $router->add('POST', '/admin/subjects', [$subjects, 'create']);
 $router->add('GET', '/admin/subjects', [$subjects, 'list']);
 $router->add('GET', '/admin/subject', [$subjects, 'show']);
+$router->add('POST', '/admin/subject/update', [$subjects, 'update']);
+// $router->add('POST', '/admin/subject/delete', [$subjects, 'delete']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !(new OriginCheck())->check()) {
     Response::error('Forbidden', 403);

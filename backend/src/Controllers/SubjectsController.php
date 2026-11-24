@@ -28,31 +28,13 @@ final class SubjectsController
         if ($subject === null) {
             return;
         }
+
         $mysqli = (new Database($this->config))->connection();
-        $query_search = $mysqli->prepare('SELECT max_element FROM pages WHERE ID = ?');
-        $query_search->bind_param('i', $subject['page_ID']);
-        $query_search->execute();
 
-        $row_found = $query_search->get_result()->fetch_row();
-        if ($row_found === null) {
-            Response::error('Page not found', 404);
+        if (!$this->pageHasRoom($mysqli, $subject['page_ID'])) {
             return;
         }
-        $max = (int) $row_found[0];
 
-        // Accepted limit: two requests arriving at the same moment could both pass this
-        // count check and exceed max_element by one. A single admin edits this CMS, so
-        // no lock is used. A transaction with SELECT ... FOR UPDATE would close the gap.
-        $query_search = $mysqli->prepare('SELECT COUNT(*) FROM subjects WHERE page_ID = ?');
-        $query_search->bind_param('i', $subject['page_ID']);
-        $query_search->execute();
-
-        $row_found = $query_search->get_result()->fetch_row();
-        $count = (int) $row_found[0];
-        if ($count >= $max) {
-            Response::error('Page is full', 409);
-            return;
-        }
         $query_insert = $mysqli->prepare('INSERT INTO subjects(page_ID, menu_name, `position`, visible, content, status) VALUES (?, ?, ?, ?, ?, ?)');
         $query_insert->bind_param(
             'isiiss',
@@ -109,6 +91,51 @@ final class SubjectsController
             return;
         }
         Response::json(['subject' => $this->format($match_row)]);
+    }
+
+    public function update(): void
+    {
+        if ((new AdminGuard())->require($this->config) === null) {
+            return;
+        }
+        $id = $this->readId();
+        if ($id === null) {
+            return;
+        }
+        $body = $this->readBody();
+        if ($body === null) {
+            return;
+        }
+        $subject = $this->validate($body);
+        if ($subject === null) {
+            return;
+        }
+
+        $mysqli = (new Database($this->config))->connection();
+        $existing_row = $this->findSubject($mysqli, $id);
+        if ($existing_row === null) {
+            Response::error('Subject not found', 404);
+            return;
+        }
+        if ($subject['page_ID'] !== (int) $existing_row['page_ID']) {
+            if (!$this->pageHasRoom($mysqli, $subject['page_ID'])) {
+                return;
+            }
+        }
+
+        $query_update = $mysqli->prepare('UPDATE subjects SET page_ID = ?, menu_name = ?, `position` = ?, visible = ?, content = ?, status = ? WHERE ID = ?');
+        $query_update->bind_param(
+            'isiissi',
+            $subject['page_ID'],
+            $subject['menu_name'],
+            $subject['position'],
+            $subject['visible'],
+            $subject['content'],
+            $subject['status'],
+            $id,
+        );
+        $query_update->execute();
+        Response::json(['subject' => $this->format($this->findSubject($mysqli, $id))]);
     }
 
     private function readBody(): ?array
@@ -183,5 +210,34 @@ final class SubjectsController
         $query_search->bind_param('i', $id);
         $query_search->execute();
         return $query_search->get_result()->fetch_assoc();
+    }
+
+    private function pageHasRoom(\mysqli $mysqli, int $pageID): bool
+    {
+        $query_search = $mysqli->prepare('SELECT max_element FROM pages WHERE ID = ?');
+        $query_search->bind_param('i', $pageID);
+        $query_search->execute();
+
+        $row_found = $query_search->get_result()->fetch_row();
+        if ($row_found === null) {
+            Response::error('Page not found', 404);
+            return false;
+        }
+        $max = (int) $row_found[0];
+
+        // Accepted limit: two requests arriving at the same moment could both pass this
+        // count check and exceed max_element by one. A single admin edits this CMS, so
+        // no lock is used. A transaction with SELECT ... FOR UPDATE would close the gap.
+        $query_search = $mysqli->prepare('SELECT COUNT(*) FROM subjects WHERE page_ID = ?');
+        $query_search->bind_param('i', $pageID);
+        $query_search->execute();
+
+        $row_found = $query_search->get_result()->fetch_row();
+        $count = (int) $row_found[0];
+        if ($count >= $max) {
+            Response::error('Page is full', 409);
+            return false;
+        }
+        return true;
     }
 }
