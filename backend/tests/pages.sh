@@ -314,6 +314,21 @@ check 'the other test page is still in the list' "$(grep -q "\"slug\":\"$slug2\"
 call POST "/admin/page/delete?id=$page_id"
 check 'deleting the same page twice answers 404 the second time' "$([ "$code" = 404 ] && echo 1 || echo 0)"
 
+# a core page is never deleted. Safety: only try while a test subpage sits under it, so the
+# database itself refuses (ON DELETE RESTRICT) even if the PHP check is missing or broken.
+call GET "/admin/page?id=$page2_id"
+if grep -Eq "\"parent_ID\":$core_id[,}]" "$body"; then
+    call POST "/admin/page/delete?id=$core_id" '' 0
+    check 'deleting a core page without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+    call POST "/admin/page/delete?id=$core_id"
+    check 'deleting a core page answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+    check 'and says "Core pages cannot be deleted"' "$(grep -q 'Core pages cannot be deleted' "$body" && echo 1 || echo 0)"
+    call GET "/admin/page?id=$core_id"
+    check 'the core page is still there' "$([ "$code" = 200 ] && grep -q '"slug":"about"' "$body" && echo 1 || echo 0)"
+else
+    check 'a test subpage sits under "about" (needed to test core delete safely)' 0
+fi
+
 # cleanup: remove the other pages this run created
 call POST "/admin/page/delete?id=$page2_id"
 check 'cleanup: second test page deleted' "$([ "$code" = 200 ] && echo 1 || echo 0)"

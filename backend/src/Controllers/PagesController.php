@@ -156,6 +156,15 @@ final class PagesController
         }
 
         $mysqli = (new Database($this->config))->connection();
+        $existing = $this->findPage($mysqli, $id);
+        if ($existing === null) {
+            Response::error('Page not found',404);
+            return;
+        }
+        if ($existing['parent_ID'] === null) {
+            Response::error('Core pages cannot be deleted',409);
+            return;
+        }
         $query_delete = $mysqli->prepare('DELETE FROM pages WHERE ID = ?');
         $query_delete->bind_param('i', $id);
         $query_delete->execute();
