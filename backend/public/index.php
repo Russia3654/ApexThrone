@@ -9,6 +9,7 @@ use App\Controllers\HealthController;
 use App\Controllers\AdminAuthController;
 use App\Controllers\PagesController;
 use App\Controllers\SubjectsController;
+use App\Controllers\PublicController;
 use App\Core\OriginCheck;
 use App\Core\Response;
 
@@ -21,6 +22,7 @@ $health = new HealthController($config);
 $auth = new AdminAuthController($config);
 $pages = new PagesController($config);
 $subjects = new SubjectsController($config);
+$public = new PublicController($config);
 
 // Health Check API
 $router->add('GET', '/health', [$health, 'status']);
@@ -35,12 +37,14 @@ $router->add('GET',  '/admin/pages', [$pages, 'list']);
 $router->add('GET', '/admin/page', [$pages, 'show']);
 $router->add('POST', '/admin/page/update', [$pages, 'update']);
 $router->add('POST', '/admin/page/delete', [$pages, 'delete']);
-// SUbjects API
+// Subjects API
 $router->add('POST', '/admin/subjects', [$subjects, 'create']);
 $router->add('GET', '/admin/subjects', [$subjects, 'list']);
 $router->add('GET', '/admin/subject', [$subjects, 'show']);
 $router->add('POST', '/admin/subject/update', [$subjects, 'update']);
 $router->add('POST', '/admin/subject/delete', [$subjects, 'delete']);
+// Public API
+$router->add('GET', '/menu', [$public, 'menu']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !(new OriginCheck())->check()) {
     Response::error('Forbidden', 403);
