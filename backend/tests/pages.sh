@@ -224,6 +224,64 @@ check 'bad data on a missing page answers 400, not 404' "$([ "$code" = 400 ] && 
 call GET "/admin/page/update?id=$page_id"
 check 'GET on the update route is refused (not 200)' "$([ "$code" != 200 ] && echo 1 || echo 0)"
 
+# 11b. update rules for a subpage (the test page, under "about")
+call GET /admin/pages
+rules_id=$(grep -Eo '\{[^{}]*"slug":"rules"[^{}]*\}' "$body" | grep -Eo '"id":[0-9]+' | cut -d: -f2)
+check 'the core page "rules" is in the list' "$([ -n "$rules_id" ] && echo 1 || echo 0)"
+
+move_json() {   # move_json <parent_ID as raw JSON> : update body for the test subpage
+    echo "{\"parent_ID\":$1,\"menu_name\":\"Renamed\",\"slug\":\"$slug\",\"position\":3,\"visible\":0,\"status\":\"published\",\"max_element\":20}"
+}
+
+call POST "/admin/page/update?id=$page_id" "$(move_json null)"
+check 'a subpage cannot become a core page (parent null answers 400)' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "{\"menu_name\":\"Renamed\",\"slug\":\"$slug\",\"position\":3,\"visible\":0,\"status\":\"published\",\"max_element\":20}"
+check 'a subpage update without parent_ID answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "$(move_json 999999999)"
+check 'moving under a page that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "$(move_json "$page2_id")"
+check 'moving under another subpage answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "$(move_json "$page_id")"
+check 'a page cannot be its own parent (409)' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call GET "/admin/page?id=$page_id"
+check 'the refused moves changed nothing' "$(grep -Eq "\"parent_ID\":$core_id[,}]" "$body" && echo 1 || echo 0)"
+
+call POST "/admin/page/update?id=$page_id" "$(move_json "$rules_id")"
+check 'moving to another core page answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+call GET "/admin/page?id=$page_id"
+check 'the move is saved' "$(grep -Eq "\"parent_ID\":$rules_id[,}]" "$body" && echo 1 || echo 0)"
+
+# 11c. update rules for a core page. This edits "about" and puts it back at the end.
+# about_now : prints the "about" object as it is now, without updated_at
+about_now() {
+    call GET /admin/pages
+    grep -Eo '\{[^{}]*"slug":"about"[^{}]*\}' "$body" | sed -E 's/,"updated_at":"[^"]*"//'
+}
+original=$(about_now)
+# the same object as a request body: the API wants visible as 1 or 0, not true or false
+restore=$(echo "$original" | sed 's/"visible":true/"visible":1/; s/"visible":false/"visible":0/')
+
+core_json() {   # core_json <parent_ID> <menu_name> <slug>
+    echo "{\"parent_ID\":$1,\"menu_name\":\"$2\",\"slug\":\"$3\",\"position\":9,\"visible\":0,\"status\":\"draft\",\"max_element\":10}"
+}
+
+call POST "/admin/page/update?id=$core_id" "$(core_json null About "test-core-$suffix")"
+check 'changing the slug of a core page answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+check 'and says "Core page structure cannot change"' "$(grep -q 'Core page structure cannot change' "$body" && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$core_id" "$(core_json "$rules_id" About about)"
+check 'giving a core page a parent answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$core_id" "$(core_json null ABCDEFGHIJKLMNOPQRSTU about)"
+check 'a core page name of 21 characters answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+check 'and says "Core page name is too long"' "$(grep -q 'Core page name is too long' "$body" && echo 1 || echo 0)"
+check 'the refused core updates changed nothing' "$([ -n "$original" ] && [ "$(about_now)" = "$original" ] && echo 1 || echo 0)"
+
+call POST "/admin/page/update?id=$core_id" "$(core_json null ABCDEFGHIJKLMNOPQRST about)"
+check 'name (20 characters), position, visibility and status can change' "$([ "$code" = 200 ] && grep -q '"menu_name":"ABCDEFGHIJKLMNOPQRST"' "$body" && grep -q '"position":9' "$body" && grep -q '"visible":false' "$body" && grep -q '"status":"draft"' "$body" && echo 1 || echo 0)"
+check 'and the page is still a core page' "$(grep -q '"parent_ID":null' "$body" && echo 1 || echo 0)"
+
+call POST "/admin/page/update?id=$core_id" "$restore"
+check 'cleanup: "about" is restored' "$([ "$code" = 200 ] && [ "$(about_now)" = "$original" ] && echo 1 || echo 0)"
+
 # 12. delete a page (slice 4); this also cleans up the pages the script created
 call POST "/admin/page/delete?id=$page_id" '' 0
 check 'delete without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"

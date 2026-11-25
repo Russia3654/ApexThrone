@@ -103,13 +103,34 @@ final class PagesController
             return;
         }
         $mysqli = (new Database($this->config))->connection();
-        if ($this->findPage($mysqli, $id) === null) {
+        $existing = $this->findPage($mysqli, $id);
+        if ($existing === null) {
             Response::error('Page not found', 404);
             return;
         }
-        $query_update = $mysqli->prepare('UPDATE pages SET menu_name = ?, slug = ?, `position` = ?, visible = ?, status = ?, max_element = ? WHERE ID = ?');
+        if ($existing['parent_ID'] === null) {
+            if ($page['parent_ID'] !== null || $existing['slug'] !== $page['slug']) {
+                Response::error('Core page structure cannot change', 409);
+                return;
+            }
+            if (strlen($page['menu_name']) > 20) {
+                Response::error('Core page name is too long', 400);
+                return;
+            }
+        } else {
+            if ($page['parent_ID'] === null) {
+                Response::error('Invalid data', 400);
+                return;
+            }
+            if (!$this->isValidParent($mysqli, $page['parent_ID'])) {
+                return;
+            }
+        }
+
+        $query_update = $mysqli->prepare('UPDATE pages SET parent_ID = ? ,menu_name = ?, slug = ?, `position` = ?, visible = ?, status = ?, max_element = ? WHERE ID = ?');
         $query_update->bind_param(
-            'ssiisii',
+            'issiisii',
+            $page['parent_ID'],
             $page['menu_name'],
             $page['slug'],
             $page['position'],
@@ -241,7 +262,7 @@ final class PagesController
             Response::error('Parent page not found', 404);
             return false;
         }
-        if ($page['parent_ID'] !== null ) {
+        if ($page['parent_ID'] !== null) {
             Response::error('Parent must be a core page', 409);
             return false;
         }
