@@ -45,6 +45,7 @@ $router->add('POST', '/admin/subject/update', [$subjects, 'update']);
 $router->add('POST', '/admin/subject/delete', [$subjects, 'delete']);
 // Public API
 $router->add('GET', '/menu', [$public, 'menu']);
+$router->add('GET', '/page', [$public,'page']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !(new OriginCheck())->check()) {
     Response::error('Forbidden', 403);
