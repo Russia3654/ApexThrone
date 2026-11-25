@@ -19,6 +19,7 @@ check() {
 
 # call <method> <path> [json] [use-cookie: 1 or 0] : sets $code, fills $body
 call() {
+    sleep "${CALL_DELAY:-0}"    # set CALL_DELAY=0.3 against srv01, whose nginx limits the request rate
     cookies=()
     if [ "${4:-1}" = "1" ]; then cookies=(-b "$jar" -c "$jar"); fi
     if [ -n "$3" ]; then
