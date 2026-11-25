@@ -159,7 +159,7 @@ final class PagesController
             !is_string($menu_name) || !is_string($slug) ||
             !is_int($position) || !is_int($visible) ||
             !in_array($status, $this->haystack, true) ||
-            !is_int($max_element) || !preg_match('/^[a-z0-9-]+$/', $slug) ||
+            !is_int($max_element) || !preg_match('/^[a-z0-9-]+$/D', $slug) ||
             $menu_name === '' || $slug === '' ||
             $position < 1 || !in_array($visible, [0, 1], true) ||
             strlen($menu_name) > 100 || strlen($slug) > 100 ||
