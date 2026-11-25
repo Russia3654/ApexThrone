@@ -27,10 +27,19 @@ final class PagesController
         if ($page === null) {
             return;
         }
+        if ($page['parent_ID'] === null) {
+            Response::error('Invalid data', 400);
+            return;
+        }
+
         $mysqli = (new Database($this->config))->connection();
-        $query_insert = $mysqli->prepare('INSERT INTO pages (menu_name, slug, `position`, visible, status, max_element) VALUES (?, ?, ?, ?, ?, ?)');
+        if (!$this->isValidParent($mysqli, $page['parent_ID'])) {
+            return;
+        }
+        $query_insert = $mysqli->prepare('INSERT INTO pages (parent_ID, menu_name, slug, `position`, visible, status, max_element) VALUES (?, ?, ?, ?, ?, ?, ?)');
         $query_insert->bind_param(
-            'ssiisi',
+            'issiisi',
+            $page['parent_ID'],
             $page['menu_name'],
             $page['slug'],
             $page['position'],
@@ -44,7 +53,7 @@ final class PagesController
         }
 
         $newID = $mysqli->insert_id;
-        $match_row = $this->findPage($mysqli,$newID);
+        $match_row = $this->findPage($mysqli, $newID);
         Response::json(['page' => $this->format($match_row)], 201);
     }
     public function list(): void
@@ -54,7 +63,7 @@ final class PagesController
         }
 
         $mysqli = (new Database($this->config))->connection();
-        $query_search = $mysqli->query('SELECT ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at FROM pages ORDER BY `position`, ID');
+        $query_search = $mysqli->query('SELECT ID, parent_ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at FROM pages ORDER BY `position`, ID');
         $rows_founds = $query_search->fetch_all(MYSQLI_ASSOC);
         $pages = array_map([$this, 'format'], $rows_founds);
         Response::json(['pages' => $pages]);
@@ -148,6 +157,7 @@ final class PagesController
     }
     private function validate(array $data): ?array
     {
+        $parent_ID = $data['parent_ID'] ?? null;
         $menu_name  = $data['menu_name'] ?? null;
         $slug = $data['slug'] ?? null;
         $position = $data['position'] ?? null;
@@ -156,6 +166,7 @@ final class PagesController
         $max_element = $data['max_element'] ?? null;
 
         if (
+            (isset($parent_ID) && (!is_int($parent_ID) || $parent_ID < 1)) ||
             !is_string($menu_name) || !is_string($slug) ||
             !is_int($position) || !is_int($visible) ||
             !in_array($status, $this->haystack, true) ||
@@ -169,6 +180,7 @@ final class PagesController
             return null;
         }
         return [
+            'parent_ID' => $parent_ID,
             'menu_name' => $menu_name,
             'slug' => $slug,
             'position' => $position,
@@ -181,6 +193,7 @@ final class PagesController
     {
         return [
             'id' => (int) $row['ID'],
+            'parent_ID' => $row['parent_ID'] === null ? null : (int) $row['parent_ID'],
             'menu_name' => $row['menu_name'],
             'slug' => $row['slug'],
             'position' => (int) $row['position'],
@@ -202,12 +215,13 @@ final class PagesController
     }
     private function findPage(\mysqli $mysqli, int $id): ?array
     {
-        $query_search = $mysqli->prepare('SELECT ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at  FROM pages WHERE ID = ?');
+        $query_search = $mysqli->prepare('SELECT ID, parent_ID, menu_name, slug, `position`, visible, status, max_element, created_at, updated_at  FROM pages WHERE ID = ?');
         $query_search->bind_param('i', $id);
         $query_search->execute();
         return $query_search->get_result()->fetch_assoc();
     }
-    private function validateQuery(\mysqli_stmt $query): bool{
+    private function validateQuery(\mysqli_stmt $query): bool
+    {
         try {
             $query->execute();
             return true;
@@ -218,5 +232,19 @@ final class PagesController
             }
             throw $e;
         }
+    }
+
+    private function isValidParent(\mysqli $mysqli, int $parentID): bool
+    {
+        $page = $this->findPage($mysqli, $parentID);
+        if ($page === null) {
+            Response::error('Parent page not found', 404);
+            return false;
+        }
+        if ($page['parent_ID'] !== null ) {
+            Response::error('Parent must be a core page', 409);
+            return false;
+        }
+        return true;
     }
 }
