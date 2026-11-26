@@ -2,7 +2,7 @@
 # Checks for GET /api/admin/pages and POST /api/admin/pages (slice 1 of the pages API).
 # Run from the project root:
 #   ADMIN_PASSWORD='your-dev-password' bash backend/tests/pages.sh [base-url]
-# Needs the PHP dev server running, the seed admin, and the pages table (001_content.sql).
+# Needs the PHP dev server running, the seed admin, migrations 001 and 003, and the core pages from seed.sql.
 # It leaves test rows behind (slugs starting with "test-"). Remove them with:
 #   DELETE FROM pages WHERE slug LIKE 'test-%';
 
@@ -19,6 +19,7 @@ check() {
 
 # call <method> <path> [json] [use-cookie: 1 or 0] : sets $code, fills $body
 call() {
+    sleep "${CALL_DELAY:-0}"    # set CALL_DELAY=0.3 against srv01, whose nginx limits the request rate
     cookies=()
     if [ "${4:-1}" = "1" ]; then cookies=(-b "$jar" -c "$jar"); fi
     if [ -n "$3" ]; then
@@ -29,9 +30,9 @@ call() {
     fi
 }
 
-# page_json <slug> : a valid page body, fields can be overridden by editing the string below
+# page_json <slug> [parent id] : a valid subpage body (default parent: the core page "about")
 page_json() {
-    echo "{\"menu_name\":\"Test page\",\"slug\":\"$1\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+    echo "{\"parent_ID\":${2:-${core_id:-1}},\"menu_name\":\"Test page\",\"slug\":\"$1\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
 }
 
 suffix="$(date +%s)$RANDOM"
@@ -52,12 +53,17 @@ call GET /admin/pages
 check 'list answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 check 'list returns a "pages" array' "$(grep -q '"pages":\[' "$body" && echo 1 || echo 0)"
 
-# 4. create a valid page
+core_id=$(grep -Eo '\{[^{}]*"slug":"about"[^{}]*\}' "$body" | grep -Eo '"id":[0-9]+' | cut -d: -f2)
+check 'the core page "about" is in the list' "$([ -n "$core_id" ] && echo 1 || echo 0)"
+check 'a core page comes with parent_ID null' "$(grep -Eo '\{[^{}]*"slug":"about"[^{}]*\}' "$body" | grep -q '"parent_ID":null' && echo 1 || echo 0)"
+
+# 4. create a valid subpage
 call POST /admin/pages "$(page_json "$slug")"
 check 'create answers 201' "$([ "$code" = 201 ] && echo 1 || echo 0)"
 check 'create returns the new slug' "$(grep -q "\"slug\":\"$slug\"" "$body" && echo 1 || echo 0)"
 check 'create returns visible as true' "$(grep -q '"visible":true' "$body" && echo 1 || echo 0)"
 check 'create returns an id' "$(grep -Eq '"id":[0-9]+' "$body" && echo 1 || echo 0)"
+check 'create returns the parent_ID' "$(grep -Eq "\"parent_ID\":$core_id[,}]" "$body" && echo 1 || echo 0)"
 page_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 
 # 5. the new page shows up in the list
@@ -69,7 +75,7 @@ call POST /admin/pages "$(page_json "$slug")"
 check 'duplicate slug answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
 
 # 7. visible = 0 must be accepted (it used to be rejected by a logic bug)
-call POST /admin/pages "{\"menu_name\":\"Hidden\",\"slug\":\"test-hidden-$suffix\",\"position\":2,\"visible\":0,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"Hidden\",\"slug\":\"test-hidden-$suffix\",\"position\":2,\"visible\":0,\"status\":\"draft\",\"max_element\":10}"
 check 'visible 0 is accepted' "$([ "$code" = 201 ] && echo 1 || echo 0)"
 hidden_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 check 'visible 0 comes back as false' "$(grep -q '"visible":false' "$body" && echo 1 || echo 0)"
@@ -81,34 +87,55 @@ check 'invalid JSON answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 call POST /admin/pages '{"menu_name":"x"}'
 check 'missing fields answer 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"test-a-$suffix\",\"position\":\"1\",\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"test-a-$suffix\",\"position\":\"1\",\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
 check 'position as a string answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"test-b-$suffix\",\"position\":1,\"visible\":2,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"test-b-$suffix\",\"position\":1,\"visible\":2,\"status\":\"draft\",\"max_element\":10}"
 check 'visible 2 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"test-c-$suffix\",\"position\":1,\"visible\":1,\"status\":\"hacked\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"test-c-$suffix\",\"position\":1,\"visible\":1,\"status\":\"hacked\",\"max_element\":10}"
 check 'unknown status answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"Bad Slug\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"Bad Slug\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
 check 'slug with a capital and a space answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"test-d-$suffix\",\"position\":0,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"test-d-$suffix\",\"position\":0,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
 check 'position 0 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"test-e-$suffix\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":101}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"test-e-$suffix\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":101}"
 check 'max_element 101 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
 long=$(printf 'a%.0s' $(seq 1 101))
-call POST /admin/pages "{\"menu_name\":\"$long\",\"slug\":\"test-f-$suffix\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"$long\",\"slug\":\"test-f-$suffix\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
 check 'menu_name over 100 characters answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"$long\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+call POST /admin/pages "{\"parent_ID\":$core_id,\"menu_name\":\"x\",\"slug\":\"$long\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
 check 'slug over 100 characters answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
 
 # 9. a failed create must not leave a row behind
 call GET /admin/pages
 check 'a rejected page was not saved' "$(grep -q 'Bad Slug' "$body" && echo 0 || echo 1)"
+
+# 9b. the parent rules (parent_body <parent_ID as raw JSON> <slug>)
+parent_body() {
+    echo "{\"parent_ID\":$1,\"menu_name\":\"x\",\"slug\":\"$2\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+}
+call POST /admin/pages "{\"menu_name\":\"x\",\"slug\":\"test-p1-$suffix\",\"position\":1,\"visible\":1,\"status\":\"draft\",\"max_element\":10}"
+check 'create without parent_ID answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST /admin/pages "$(parent_body null "test-p2-$suffix")"
+check 'create with parent_ID null answers 400 (no new core pages)' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST /admin/pages "$(parent_body "\"$core_id\"" "test-p3-$suffix")"
+check 'parent_ID as a string answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST /admin/pages "$(parent_body 0 "test-p4-$suffix")"
+check 'parent_ID 0 answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST /admin/pages "$(parent_body 999999999 "test-p5-$suffix")"
+check 'a parent that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+check 'and says "Parent page not found"' "$(grep -q 'Parent page not found' "$body" && echo 1 || echo 0)"
+call POST /admin/pages "$(parent_body "$page_id" "test-p6-$suffix")"
+check 'a subpage as parent answers 409 (one level only)' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+check 'and says "Parent must be a core page"' "$(grep -q 'Parent must be a core page' "$body" && echo 1 || echo 0)"
+call GET /admin/pages
+check 'none of the refused subpages was saved' "$([ "$code" = 200 ] && ! grep -q "test-p[1-6]-$suffix" "$body" && echo 1 || echo 0)"
 
 # 10. show one page (slice 2)
 call GET "/admin/page?id=$page_id" '' 0
@@ -118,6 +145,7 @@ call GET "/admin/page?id=$page_id"
 check 'show a real page answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 check 'show returns the right slug' "$(grep -q "\"slug\":\"$slug\"" "$body" && echo 1 || echo 0)"
 check 'show returns the same id that create gave' "$(grep -q "\"id\":$page_id" "$body" && echo 1 || echo 0)"
+check 'show returns the parent_ID' "$(grep -Eq "\"parent_ID\":$core_id[,}]" "$body" && echo 1 || echo 0)"
 
 call GET '/admin/page?id=999999999'
 check 'show an id that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
@@ -146,7 +174,7 @@ check 'POST on the show route is refused (not 200)' "$([ "$code" != 200 ] && ech
 
 # 11. update a page (slice 3)
 update_json() {   # update_json <slug> <menu_name> <visible> <status>
-    echo "{\"menu_name\":\"$2\",\"slug\":\"$1\",\"position\":3,\"visible\":$3,\"status\":\"$4\",\"max_element\":20}"
+    echo "{\"parent_ID\":$core_id,\"menu_name\":\"$2\",\"slug\":\"$1\",\"position\":3,\"visible\":$3,\"status\":\"$4\",\"max_element\":20}"
 }
 
 call POST "/admin/page/update?id=$page_id" "$(update_json "$slug" Renamed 0 published)" 0
@@ -197,6 +225,64 @@ check 'bad data on a missing page answers 400, not 404' "$([ "$code" = 400 ] && 
 call GET "/admin/page/update?id=$page_id"
 check 'GET on the update route is refused (not 200)' "$([ "$code" != 200 ] && echo 1 || echo 0)"
 
+# 11b. update rules for a subpage (the test page, under "about")
+call GET /admin/pages
+rules_id=$(grep -Eo '\{[^{}]*"slug":"rules"[^{}]*\}' "$body" | grep -Eo '"id":[0-9]+' | cut -d: -f2)
+check 'the core page "rules" is in the list' "$([ -n "$rules_id" ] && echo 1 || echo 0)"
+
+move_json() {   # move_json <parent_ID as raw JSON> : update body for the test subpage
+    echo "{\"parent_ID\":$1,\"menu_name\":\"Renamed\",\"slug\":\"$slug\",\"position\":3,\"visible\":0,\"status\":\"published\",\"max_element\":20}"
+}
+
+call POST "/admin/page/update?id=$page_id" "$(move_json null)"
+check 'a subpage cannot become a core page (parent null answers 400)' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "{\"menu_name\":\"Renamed\",\"slug\":\"$slug\",\"position\":3,\"visible\":0,\"status\":\"published\",\"max_element\":20}"
+check 'a subpage update without parent_ID answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "$(move_json 999999999)"
+check 'moving under a page that does not exist answers 404' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "$(move_json "$page2_id")"
+check 'moving under another subpage answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$page_id" "$(move_json "$page_id")"
+check 'a page cannot be its own parent (409)' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call GET "/admin/page?id=$page_id"
+check 'the refused moves changed nothing' "$(grep -Eq "\"parent_ID\":$core_id[,}]" "$body" && echo 1 || echo 0)"
+
+call POST "/admin/page/update?id=$page_id" "$(move_json "$rules_id")"
+check 'moving to another core page answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
+call GET "/admin/page?id=$page_id"
+check 'the move is saved' "$(grep -Eq "\"parent_ID\":$rules_id[,}]" "$body" && echo 1 || echo 0)"
+
+# 11c. update rules for a core page. This edits "about" and puts it back at the end.
+# about_now : prints the "about" object as it is now, without updated_at
+about_now() {
+    call GET /admin/pages
+    grep -Eo '\{[^{}]*"slug":"about"[^{}]*\}' "$body" | sed -E 's/,"updated_at":"[^"]*"//'
+}
+original=$(about_now)
+# the same object as a request body: the API wants visible as 1 or 0, not true or false
+restore=$(echo "$original" | sed 's/"visible":true/"visible":1/; s/"visible":false/"visible":0/')
+
+core_json() {   # core_json <parent_ID> <menu_name> <slug>
+    echo "{\"parent_ID\":$1,\"menu_name\":\"$2\",\"slug\":\"$3\",\"position\":9,\"visible\":0,\"status\":\"draft\",\"max_element\":10}"
+}
+
+call POST "/admin/page/update?id=$core_id" "$(core_json null About "test-core-$suffix")"
+check 'changing the slug of a core page answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+check 'and says "Core page structure cannot change"' "$(grep -q 'Core page structure cannot change' "$body" && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$core_id" "$(core_json "$rules_id" About about)"
+check 'giving a core page a parent answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+call POST "/admin/page/update?id=$core_id" "$(core_json null ABCDEFGHIJKLMNOPQRSTU about)"
+check 'a core page name of 21 characters answers 400' "$([ "$code" = 400 ] && echo 1 || echo 0)"
+check 'and says "Core page name is too long"' "$(grep -q 'Core page name is too long' "$body" && echo 1 || echo 0)"
+check 'the refused core updates changed nothing' "$([ -n "$original" ] && [ "$(about_now)" = "$original" ] && echo 1 || echo 0)"
+
+call POST "/admin/page/update?id=$core_id" "$(core_json null ABCDEFGHIJKLMNOPQRST about)"
+check 'name (20 characters), position, visibility and status can change' "$([ "$code" = 200 ] && grep -q '"menu_name":"ABCDEFGHIJKLMNOPQRST"' "$body" && grep -q '"position":9' "$body" && grep -q '"visible":false' "$body" && grep -q '"status":"draft"' "$body" && echo 1 || echo 0)"
+check 'and the page is still a core page' "$(grep -q '"parent_ID":null' "$body" && echo 1 || echo 0)"
+
+call POST "/admin/page/update?id=$core_id" "$restore"
+check 'cleanup: "about" is restored' "$([ "$code" = 200 ] && [ "$(about_now)" = "$original" ] && echo 1 || echo 0)"
+
 # 12. delete a page (slice 4); this also cleans up the pages the script created
 call POST "/admin/page/delete?id=$page_id" '' 0
 check 'delete without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
@@ -228,6 +314,21 @@ check 'the other test page is still in the list' "$(grep -q "\"slug\":\"$slug2\"
 
 call POST "/admin/page/delete?id=$page_id"
 check 'deleting the same page twice answers 404 the second time' "$([ "$code" = 404 ] && echo 1 || echo 0)"
+
+# a core page is never deleted. Safety: only try while a test subpage sits under it, so the
+# database itself refuses (ON DELETE RESTRICT) even if the PHP check is missing or broken.
+call GET "/admin/page?id=$page2_id"
+if grep -Eq "\"parent_ID\":$core_id[,}]" "$body"; then
+    call POST "/admin/page/delete?id=$core_id" '' 0
+    check 'deleting a core page without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
+    call POST "/admin/page/delete?id=$core_id"
+    check 'deleting a core page answers 409' "$([ "$code" = 409 ] && echo 1 || echo 0)"
+    check 'and says "Core pages cannot be deleted"' "$(grep -q 'Core pages cannot be deleted' "$body" && echo 1 || echo 0)"
+    call GET "/admin/page?id=$core_id"
+    check 'the core page is still there' "$([ "$code" = 200 ] && grep -q '"slug":"about"' "$body" && echo 1 || echo 0)"
+else
+    check 'a test subpage sits under "about" (needed to test core delete safely)' 0
+fi
 
 # cleanup: remove the other pages this run created
 call POST "/admin/page/delete?id=$page2_id"

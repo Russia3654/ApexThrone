@@ -4,7 +4,7 @@
 #   ADMIN_PASSWORD='your-dev-password' bash backend/tests/subjects.sh [base-url]
 # Against srv01 add CALL_DELAY=0.3 (about 100 requests, and nginx there answers 429 above ~5 requests per second):
 #   CALL_DELAY=0.3 ADMIN_PASSWORD='...' bash backend/tests/subjects.sh http://apexthrone.test
-# Needs the PHP dev server running, the seed admin, and the pages + subjects tables (001_content.sql).
+# Needs the PHP dev server running, the seed admin, migrations 001 and 003, and the core pages from seed.sql.
 # It creates its own test page (slug starting with "test-subj-") and deletes it at the end.
 # Deleting the page also deletes its subjects (ON DELETE CASCADE). If the script stops early, remove leftovers with:
 #   DELETE FROM pages WHERE slug LIKE 'test-subj-%';
@@ -45,11 +45,15 @@ slug="test-subj-$suffix"
 call POST /admin/subjects "$(subject_json 1)" 0
 check 'create without a login answers 401' "$([ "$code" = 401 ] && echo 1 || echo 0)"
 
-# 2. log in, then make a test page that holds at most 2 subjects
+# 2. log in, then make a test page (a subpage of "about") that holds at most 2 subjects
 call POST /admin/login "{\"username\":\"admin\",\"password\":\"$PASS_OK\"}"
 check 'login answers 200' "$([ "$code" = 200 ] && echo 1 || echo 0)"
 
-call POST /admin/pages "{\"menu_name\":\"Test subjects page\",\"slug\":\"$slug\",\"position\":1,\"visible\":0,\"status\":\"draft\",\"max_element\":2}"
+call GET /admin/pages
+about_id=$(grep -Eo '\{[^{}]*"slug":"about"[^{}]*\}' "$body" | grep -Eo '"id":[0-9]+' | cut -d: -f2)
+check 'setup: the core page "about" is found' "$([ -n "$about_id" ] && echo 1 || echo 0)"
+
+call POST /admin/pages "{\"parent_ID\":$about_id,\"menu_name\":\"Test subjects page\",\"slug\":\"$slug\",\"position\":1,\"visible\":0,\"status\":\"draft\",\"max_element\":2}"
 check 'setup: the test page is created (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
 page_id=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 
@@ -196,7 +200,7 @@ check 'update of an id that does not exist answers 404' "$([ "$code" = 404 ] && 
 
 # 16. moving: make a second page B that holds only 1 subject
 slug_b="test-subj-b-$suffix"
-call POST /admin/pages "{\"menu_name\":\"Test page B\",\"slug\":\"$slug_b\",\"position\":2,\"visible\":0,\"status\":\"draft\",\"max_element\":1}"
+call POST /admin/pages "{\"parent_ID\":$about_id,\"menu_name\":\"Test page B\",\"slug\":\"$slug_b\",\"position\":2,\"visible\":0,\"status\":\"draft\",\"max_element\":1}"
 check 'setup: the second test page is created (201)' "$([ "$code" = 201 ] && echo 1 || echo 0)"
 page_b=$(grep -Eo '"id":[0-9]+' "$body" | head -1 | cut -d: -f2)
 
