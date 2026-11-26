@@ -32,3 +32,32 @@ export type Credentials = {
   username: string;
   password: string;
 };
+
+export type PageStatus = 'draft' | 'published' | 'archived';
+
+export type AdminPage = {
+  id: number;
+  parent_ID: number | null;
+  menu_name: string;
+  slug: string;
+  position: number;
+  visible: boolean;
+  status: PageStatus;
+  max_element: number;
+  created_at: string;
+  updated_at: string;
+};
+
+// what we send: PHP wants visible as 1 or 0
+export type PageInput = {
+  parent_ID: number | null;
+  menu_name: string;
+  slug: string;
+  position: number;
+  visible: 0 | 1;
+  status: PageStatus;
+  max_element: number;
+};
+
+export type AdminPagesResponse = { pages: AdminPage[] };
+export type AdminPageResponse = { page: AdminPage };

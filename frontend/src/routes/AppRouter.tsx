@@ -14,6 +14,7 @@ import Tournaments from '../pages/public/Tournaments';
 import AdminLogin from '../pages/private/admin/AdminLogin';
 import AdminRoot from './AdminRoot';
 import RequireAdmin from './RequireAdmin';
+import PageList from '../pages/private/admin/pages/PageList';
 
 const router = createBrowserRouter([
   {
@@ -72,6 +73,10 @@ const router = createBrowserRouter([
               {
                 path: 'subjects/SubjectDelete/:id',
                 element: <SubjectDelete />,
+              },
+              {
+                path: 'pages',
+                element: <PageList />,
               },
             ],
           },
