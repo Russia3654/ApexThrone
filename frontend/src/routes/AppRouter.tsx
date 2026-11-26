@@ -7,10 +7,9 @@ import SubjectEdit from '../pages/private/admin/subjects/SubjectEdit';
 import SubjectList from '../pages/private/admin/subjects/SubjectList';
 import SubjectNew from '../pages/private/admin/subjects/SubjectNew';
 import SubjectView from '../pages/private/admin/subjects/SubjectView';
-import About from '../pages/public/About';
-import Contact from '../pages/public/Contact';
+import ContentPage from '../pages/public/ContentPage';
+import NotFound from '../pages/public/NotFound';
 import Home from '../pages/public/Home';
-import Rules from '../pages/public/Rules';
 import Tournaments from '../pages/public/Tournaments';
 
 const router = createBrowserRouter([
@@ -27,16 +26,12 @@ const router = createBrowserRouter([
         element: <Tournaments />,
       },
       {
-        path: 'rules',
-        element: <Rules />,
+        path: ':slug',
+        element: <ContentPage />,
       },
       {
-        path: 'about',
-        element: <About />,
-      },
-      {
-        path: 'contact',
-        element: <Contact />,
+        path: '*',
+        element: <NotFound />,
       },
     ],
   },
