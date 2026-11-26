@@ -13,6 +13,7 @@ import Home from '../pages/public/Home';
 import Tournaments from '../pages/public/Tournaments';
 import AdminLogin from '../pages/private/admin/AdminLogin';
 import AdminRoot from './AdminRoot';
+import RequireAdmin from './RequireAdmin';
 
 const router = createBrowserRouter([
   {
@@ -43,31 +44,36 @@ const router = createBrowserRouter([
     children: [
       { path: 'login', element: <AdminLogin /> },
       {
-        element: <AdminLayout />,
+        element: <RequireAdmin />,
         children: [
           {
-            index: true,
-            element: <AdminMenuPage />,
-          },
-          {
-            path: 'subjects',
-            element: <SubjectList />,
-          },
-          {
-            path: 'subjects/SubjectNew',
-            element: <SubjectNew />,
-          },
-          {
-            path: 'subjects/SubjectView/:id',
-            element: <SubjectView />,
-          },
-          {
-            path: 'subjects/SubjectEdit/:id',
-            element: <SubjectEdit />,
-          },
-          {
-            path: 'subjects/SubjectDelete/:id',
-            element: <SubjectDelete />,
+            element: <AdminLayout />,
+            children: [
+              {
+                index: true,
+                element: <AdminMenuPage />,
+              },
+              {
+                path: 'subjects',
+                element: <SubjectList />,
+              },
+              {
+                path: 'subjects/SubjectNew',
+                element: <SubjectNew />,
+              },
+              {
+                path: 'subjects/SubjectView/:id',
+                element: <SubjectView />,
+              },
+              {
+                path: 'subjects/SubjectEdit/:id',
+                element: <SubjectEdit />,
+              },
+              {
+                path: 'subjects/SubjectDelete/:id',
+                element: <SubjectDelete />,
+              },
+            ],
           },
         ],
       },
