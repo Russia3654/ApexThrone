@@ -1,4 +1,4 @@
-import { mockPages } from '../mock/publicMock';
+import { mockMenu, mockPages } from '../mock/publicMock';
 import { getMenu, getPage } from './publicApi';
 
 let mockUseMock = false;
@@ -41,7 +41,12 @@ describe('real API', () => {
   });
 
   test('getPage asks for the slug and returns the page', async () => {
-    const page = { menu_name: 'About', slug: 'about', subjects: [] };
+    const page = {
+      menu_name: 'About',
+      slug: 'about',
+      subjects: [],
+      subpages: [{ menu_name: 'Our history', slug: 'history' }],
+    };
     serverAnswers(200, { page });
 
     await expect(getPage('about')).resolves.toEqual(page);
@@ -92,11 +97,25 @@ describe('mock mode', () => {
     mockUseMock = true;
   });
 
-  test('getMenu returns only names and slugs, without calling the server', async () => {
-    await expect(getMenu()).resolves.toStrictEqual(
-      mockPages.map((page) => ({ menu_name: page.menu_name, slug: page.slug })),
-    );
+  test('getMenu returns the mock menu, without calling the server', async () => {
+    await expect(getMenu()).resolves.toEqual(mockMenu);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('the mock menu holds core pages only, never a subpage', async () => {
+    const menuSlugs = (await getMenu()).map((item) => item.slug);
+    const subpageSlugs = mockPages.flatMap((page) => page.subpages.map((item) => item.slug));
+
+    expect(subpageSlugs.length).toBeGreaterThan(0);
+    subpageSlugs.forEach((slug) => expect(menuSlugs).not.toContain(slug));
+  });
+
+  test('every link in the mock data leads to a mock page', async () => {
+    const links = [...mockMenu, ...mockPages.flatMap((page) => page.subpages)];
+
+    for (const link of links) {
+      await expect(getPage(link.slug)).resolves.toMatchObject({ menu_name: link.menu_name });
+    }
   });
 
   test('getPage returns the matching mock page', async () => {

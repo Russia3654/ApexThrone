@@ -13,6 +13,7 @@ export type PublicPage = {
   menu_name: string;
   slug: string;
   subjects: PublicSubject[];
+  subpages: MenuItem[];
 };
 
 export type MenuResponse = { menu: MenuItem[] };

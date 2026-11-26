@@ -1,11 +1,11 @@
-import { mockPages } from '../mock/publicMock';
+import { mockMenu, mockPages } from '../mock/publicMock';
 import { MenuItem, MenuResponse, PageResponse, PublicPage } from '../types/api';
 import { ApiError, apiGet } from './client';
 import { USE_MOCK } from './config';
 
 export async function getMenu(): Promise<MenuItem[]> {
   if (USE_MOCK) {
-    return mockPages.map(({ menu_name, slug }) => ({ menu_name, slug }));
+    return mockMenu;
   }
   const { menu } = await apiGet<MenuResponse>('/menu');
   return menu;
