@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { deletePage } from '../api/adminPagesApi';
 import { ApiError } from '../api/client';
 
-export function useDeletePage(id: number, onDeleted: () => void) {
+export function useDeleteAction(remove: () => Promise<void>, onDeleted: () => void) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -11,7 +10,7 @@ export function useDeletePage(id: number, onDeleted: () => void) {
     setDeleting(true);
     setError(null);
     try {
-      await deletePage(id);
+      await remove();
       onDeleted();
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : 'The server could not be reached.');

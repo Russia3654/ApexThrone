@@ -2,7 +2,6 @@ import RowActions from './RowActions';
 import { AdminPage } from '../../../types/api';
 
 const CELL = 'px-4 py-3';
-const ACTION = 'hover:underline focus-visible:outline focus-visible:outline-2';
 
 export default function PageRow({ page }: { page: AdminPage }) {
   const isCore = page.parent_ID === null;

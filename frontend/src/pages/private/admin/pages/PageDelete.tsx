@@ -3,14 +3,16 @@ import Button from '../../../../components/ui/Buttons/Button';
 import PageDetails from '../../../../components/ui/Dashboard/PageDetails';
 import PageHeader from '../../../../components/ui/Dashboard/PageHeader';
 import { useAdminPage } from '../../../../hooks/useAdminPage';
-import { useDeletePage } from '../../../../hooks/useDeletePage';
+import { deletePage } from '../../../../api/adminPagesApi';
+import { useDeleteAction } from '../../../../hooks/useDeleteAction';
 
 export default function PageDelete() {
   const { id } = useParams();
   const navigate = useNavigate();
   const state = useAdminPage(Number(id));
-  const { deleting, error, handleDelete } = useDeletePage(Number(id), () =>
-    navigate('/admin/pages'),
+  const { deleting, error, handleDelete } = useDeleteAction(
+    () => deletePage(Number(id)),
+    () => navigate('/admin/pages'),
   );
 
   return (
