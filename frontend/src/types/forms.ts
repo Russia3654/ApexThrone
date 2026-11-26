@@ -10,3 +10,12 @@ export type PageFormValues = {
   status: PageStatus;
   max_element: string;
 };
+
+export type SubjectFormValues = {
+  page_ID: string;
+  menu_name: string;
+  position: string;
+  visible: boolean;
+  content: string;
+  status: PageStatus;
+};
