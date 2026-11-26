@@ -4,10 +4,19 @@ type TextFieldProps = {
   label: string;
   name: string;
   value: string;
+  type?: 'text' | 'password';
+  autoComplete?: string;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
 };
 
-const TextField = ({ label, name, value, onChange }: TextFieldProps) => {
+const TextField = ({
+  label,
+  name,
+  value,
+  onChange,
+  type = 'text',
+  autoComplete,
+}: TextFieldProps) => {
   return (
     <div className="flex flex-col gap-1">
       <label
@@ -21,8 +30,9 @@ const TextField = ({ label, name, value, onChange }: TextFieldProps) => {
         id={name}
         name={name}
         value={value}
+        type={type}
+        autoComplete={autoComplete}
         onChange={onChange}
-        type="text"
       />
     </div>
   );
