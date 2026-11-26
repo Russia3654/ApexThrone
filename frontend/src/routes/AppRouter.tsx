@@ -15,28 +15,17 @@ import AdminLogin from '../pages/private/admin/AdminLogin';
 import AdminRoot from './AdminRoot';
 import RequireAdmin from './RequireAdmin';
 import PageList from '../pages/private/admin/pages/PageList';
+import PageEditor from '../pages/private/admin/pages/PageEditor';
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <PublicLayout />,
     children: [
-      {
-        index: true,
-        element: <Home />,
-      },
-      {
-        path: 'tournaments',
-        element: <Tournaments />,
-      },
-      {
-        path: ':slug',
-        element: <ContentPage />,
-      },
-      {
-        path: '*',
-        element: <NotFound />,
-      },
+      { index: true, element: <Home /> },
+      { path: 'tournaments', element: <Tournaments /> },
+      { path: ':slug', element: <ContentPage /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
   {
@@ -50,34 +39,15 @@ const router = createBrowserRouter([
           {
             element: <AdminLayout />,
             children: [
-              {
-                index: true,
-                element: <AdminMenuPage />,
-              },
-              {
-                path: 'subjects',
-                element: <SubjectList />,
-              },
-              {
-                path: 'subjects/SubjectNew',
-                element: <SubjectNew />,
-              },
-              {
-                path: 'subjects/SubjectView/:id',
-                element: <SubjectView />,
-              },
-              {
-                path: 'subjects/SubjectEdit/:id',
-                element: <SubjectEdit />,
-              },
-              {
-                path: 'subjects/SubjectDelete/:id',
-                element: <SubjectDelete />,
-              },
-              {
-                path: 'pages',
-                element: <PageList />,
-              },
+              { index: true, element: <AdminMenuPage /> },
+              { path: 'subjects', element: <SubjectList /> },
+              { path: 'subjects/SubjectNew', element: <SubjectNew /> },
+              { path: 'subjects/SubjectView/:id', element: <SubjectView /> },
+              { path: 'subjects/SubjectEdit/:id', element: <SubjectEdit /> },
+              { path: 'subjects/SubjectDelete/:id', element: <SubjectDelete /> },
+              { path: 'pages', element: <PageList /> },
+              { path: 'pages/new', element: <PageEditor /> },
+              { path: 'pages/:id/edit', element: <PageEditor /> },
             ],
           },
         ],

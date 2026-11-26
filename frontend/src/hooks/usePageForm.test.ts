@@ -58,12 +58,12 @@ test('a new page offers the core pages as parents, the first one selected', asyn
 });
 
 test('editing fills the form with the page, and knows a subpage from a core page', async () => {
-  const subpage = await renderReady(5);
-  const core = await renderReady(2);
+  const { result: subpage } = await renderReady(5);
+  const { result: core } = await renderReady(2);
 
-  expect(subpage.result.current.values).toMatchObject({ parent_ID: '2', slug: 'page-5' });
-  expect(subpage.result.current.load).toMatchObject({ isCore: false });
-  expect(core.result.current.load).toMatchObject({ isCore: true });
+  expect(subpage.current.values).toMatchObject({ parent_ID: '2', slug: 'page-5' });
+  expect(subpage.current.load).toMatchObject({ isCore: false });
+  expect(core.current.load).toMatchObject({ isCore: true });
 });
 
 test('an id that does not exist is reported', async () => {
