@@ -1,0 +1,4 @@
+ALTER TABLE pages
+    ADD COLUMN parent_ID INT UNSIGNED AFTER ID,
+    ADD CONSTRAINT fk_pages_parent
+        FOREIGN KEY (parent_ID) REFERENCES pages(ID) ON DELETE RESTRICT;

@@ -1,12 +1,15 @@
 import { ChangeEvent } from 'react';
 
+type Option = string | { value: string; label: string };
+
 type SelectFieldProps = {
   label: string;
   name: string;
   value: string;
   onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
-  options: string[];
+  options: Option[];
 };
+
 const SelectField = ({ label, name, value, onChange, options }: SelectFieldProps) => {
   return (
     <div className="flex flex-col gap-1">
@@ -23,11 +26,15 @@ const SelectField = ({ label, name, value, onChange, options }: SelectFieldProps
         value={value}
         onChange={onChange}
       >
-        {options.map((option) => (
-          <option value={option} key={option}>
-            {option}
-          </option>
-        ))}
+        {options.map((option) => {
+          const { value: optionValue, label: text } =
+            typeof option === 'string' ? { value: option, label: option } : option;
+          return (
+            <option value={optionValue} key={optionValue}>
+              {text}
+            </option>
+          );
+        })}
       </select>
     </div>
   );

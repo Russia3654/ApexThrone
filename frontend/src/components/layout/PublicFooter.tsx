@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom';
-import { links } from '../../utils/navLinks';
+import { NavItem } from '../../types/ui';
 
-export default function PublicFooter() {
+type PublicFooterProps = {
+  links: NavItem[];
+};
+
+export default function PublicFooter({ links }: PublicFooterProps) {
   return (
     <footer className="border-t border-surface-2 bg-surface">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 py-8 text-sm text-ink-muted md:flex-row md:justify-between">

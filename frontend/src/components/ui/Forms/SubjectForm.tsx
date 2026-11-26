@@ -1,63 +1,65 @@
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent } from 'react';
+import { SubjectFormValues } from '../../../types/forms';
 import Button from '../Buttons/Button';
 import CheckboxField from './CheckboxField';
 import SelectField from './SelectField';
+import TextAreaField from './TextAreaField';
 import TextField from './TextField';
 
 type SubjectFormProps = {
-  submitLabel: string;
-  options: string[];
-  onSubmit: () => void;
-  initName?: string;
-  initPosition?: string;
-  initVisible?: boolean;
+  values: SubjectFormValues;
+  pageOptions: { value: string; label: string }[];
+  error: string | null;
+  saving: boolean;
+  onChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-export default function SubjectForm({
-  submitLabel,
-  options,
-  onSubmit,
-  initName,
-  initPosition,
-  initVisible,
-}: SubjectFormProps) {
-  const [name, setName] = useState(initName ?? '');
-  const [position, setPosition] = useState(initPosition ?? options[0] ?? '');
-  const [visible, setVisible] = useState(initVisible ?? false);
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    onSubmit();
-  };
-  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setName(event.target.value);
-  };
-  const handlePositionChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setPosition(event.target.value);
-  };
-  const handleVisibleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setVisible(event.target.checked);
-  };
+export default function SubjectForm(props: SubjectFormProps) {
+  const { values, pageOptions, error, saving, onChange, onSubmit } = props;
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md space-y-4">
-      <TextField label="Section Name" name="sectionName" value={name} onChange={handleNameChange} />
+    <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4">
       <SelectField
+        label="Page"
+        name="page_ID"
+        value={values.page_ID}
+        onChange={onChange}
+        options={pageOptions}
+      />
+      <TextField
+        label="Section name"
+        name="menu_name"
+        value={values.menu_name}
+        onChange={onChange}
+        maxLength={100}
+      />
+      <TextField
         label="Position"
         name="position"
-        value={position}
-        onChange={handlePositionChange}
-        options={options}
+        type="number"
+        value={values.position}
+        onChange={onChange}
       />
-      <CheckboxField
-        label="Visible"
-        name="visible"
-        checked={visible}
-        onChange={handleVisibleChange}
+      <TextAreaField label="Content" name="content" value={values.content} onChange={onChange} />
+      <SelectField
+        label="Status"
+        name="status"
+        value={values.status}
+        onChange={onChange}
+        options={['draft', 'published', 'archived']}
       />
-      <div className="pt-2">
-        <Button type="submit">{submitLabel}</Button>
-      </div>
+      <CheckboxField label="Visible" name="visible" checked={values.visible} onChange={onChange} />
+      {error && (
+        <p role="alert" className="text-crimson">
+          {error}
+        </p>
+      )}
+      <Button type="submit" disabled={saving}>
+        {saving ? 'Saving...' : 'Save'}
+      </Button>
     </form>
   );
 }

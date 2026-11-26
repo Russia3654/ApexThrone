@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import AdminUserMenu from './AdminUserMenu';
 
 type LinksType = {
   to: string;
@@ -42,6 +43,7 @@ const AdminLayout = () => {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-surface-2 bg-surface px-6 py-5">
           ApexThrone SuperAdmin Panel
+          <AdminUserMenu />
         </header>
         <main className="flex-1 p-6">
           <Outlet />
