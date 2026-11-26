@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
-import { links } from '../../utils/navLinks';
+import { NavItem } from '../../types/ui';
 import LinkButton from '../ui/Links/LinkButton';
 import logo from '../../assets/ApexThrone.png';
 import { useRef, useState, KeyboardEvent } from 'react';
@@ -9,9 +9,14 @@ const BASE =
 const INACTIVE_CLASS = 'text-ink-muted hover:text-ink';
 const ACTIVE_CLASS = 'text-gold';
 
-export default function PublicNavbar() {
+type PublicNavbarProps = {
+  links: NavItem[];
+};
+
+export default function PublicNavbar({ links }: PublicNavbarProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const half = Math.ceil(links.length / 2);
 
   const handleToggle = () => {
     setOpen(!open);
@@ -50,7 +55,7 @@ export default function PublicNavbar() {
               Search
             </button>
           </li>
-          {links.slice(0, 2).map((link) => (
+          {links.slice(0, half).map((link) => (
             <li key={link.to} className="hidden md:block">
               <NavLink
                 className={({ isActive }) => `${BASE} ${isActive ? ACTIVE_CLASS : INACTIVE_CLASS}`}
@@ -70,7 +75,7 @@ export default function PublicNavbar() {
           <img src={logo} alt="" className="relative h-16 w-auto" />
         </Link>
         <ul className="flex items-center justify-end gap-6">
-          {links.slice(2).map((link) => (
+          {links.slice(half).map((link) => (
             <li key={link.to} className="hidden md:block">
               <NavLink
                 className={({ isActive }) => `${BASE} ${isActive ? ACTIVE_CLASS : INACTIVE_CLASS}`}
