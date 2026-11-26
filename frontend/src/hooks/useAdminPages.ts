@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { listPages } from '../api/adminPagesApi';
 import { ApiError } from '../api/client';
 import { groupPages, PageGroup } from '../utils/groupPages';
+import { SESSION_EXPIRED } from '../utils/messages';
 
 type AdminPagesState =
   | { status: 'loading' }
@@ -20,9 +21,7 @@ export function useAdminPages(): AdminPagesState {
       .catch((error: unknown) => {
         if (!active) return;
         const expired = error instanceof ApiError && error.status === 401;
-        const message = expired
-          ? 'Your session has expired. Reload the page to sign in again.'
-          : 'The pages could not be loaded.';
+        const message = expired ? SESSION_EXPIRED : 'The pages could not be loaded.';
         setState({ status: 'error', message });
       });
     return () => {

@@ -16,6 +16,8 @@ import AdminRoot from './AdminRoot';
 import RequireAdmin from './RequireAdmin';
 import PageList from '../pages/private/admin/pages/PageList';
 import PageEditor from '../pages/private/admin/pages/PageEditor';
+import PageDelete from '../pages/private/admin/pages/PageDelete';
+import PageView from '../pages/private/admin/pages/PageView';
 
 const router = createBrowserRouter([
   {
@@ -48,6 +50,8 @@ const router = createBrowserRouter([
               { path: 'pages', element: <PageList /> },
               { path: 'pages/new', element: <PageEditor /> },
               { path: 'pages/:id/edit', element: <PageEditor /> },
+              { path: 'pages/:id', element: <PageView /> },
+              { path: 'pages/:id/delete', element: <PageDelete /> },
             ],
           },
         ],
