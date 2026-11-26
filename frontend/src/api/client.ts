@@ -20,11 +20,23 @@ function errorMessage(body: unknown): string {
   return 'Something went wrong';
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`/api${path}`);
+async function read<T>(response: Response): Promise<T> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok || body === null) {
     throw new ApiError(errorMessage(body), response.status);
   }
   return body as T;
+}
+
+export async function apiGet<T>(path: string): Promise<T> {
+  return read<T>(await fetch(`/api${path}`));
+}
+
+export async function apiPost<T>(path: string, data?: unknown): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return read<T>(response);
 }

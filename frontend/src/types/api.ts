@@ -18,3 +18,17 @@ export type PublicPage = {
 
 export type MenuResponse = { menu: MenuItem[] };
 export type PageResponse = { page: PublicPage };
+
+export type Admin = {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+};
+
+export type AdminResponse = { admin: Admin };
+
+export type Credentials = {
+  username: string;
+  password: string;
+};
