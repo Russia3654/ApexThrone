@@ -61,3 +61,27 @@ export type PageInput = {
 
 export type AdminPagesResponse = { pages: AdminPage[] };
 export type AdminPageResponse = { page: AdminPage };
+
+export type AdminSubject = {
+  id: number;
+  page_ID: number;
+  menu_name: string;
+  position: number;
+  visible: boolean;
+  content: string;
+  status: PageStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubjectInput = {
+  page_ID: number;
+  menu_name: string;
+  position: number;
+  visible: 0 | 1;
+  content: string;
+  status: PageStatus;
+};
+
+export type AdminSubjectsResponse = { subjects: AdminSubject[] };
+export type AdminSubjectResponse = { subject: AdminSubject };

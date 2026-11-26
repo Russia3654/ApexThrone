@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import RowActions from './RowActions';
 import { AdminPage } from '../../../types/api';
 
 const CELL = 'px-4 py-3';
@@ -18,19 +18,12 @@ export default function PageRow({ page }: { page: AdminPage }) {
       <td className={CELL}>{page.visible ? 'Yes' : 'No'}</td>
       <td className={CELL}>{page.status}</td>
       <td className={CELL}>
-        <div className="flex flex-wrap gap-6">
-          <Link className={`${ACTION} text-cyan`} to={base}>
-            View
-          </Link>
-          <Link className={`${ACTION} text-gold`} to={`${base}/edit`}>
-            Edit
-          </Link>
-          {!isCore && (
-            <Link className={`${ACTION} text-crimson`} to={`${base}/delete`}>
-              Delete
-            </Link>
-          )}
-        </div>
+        <RowActions
+          name={page.menu_name}
+          viewTo={base}
+          editTo={`${base}/edit`}
+          deleteTo={isCore ? undefined : `${base}/delete`}
+        />
       </td>
     </tr>
   );
